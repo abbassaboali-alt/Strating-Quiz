@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Prudle Fun Activities — Play</title>
+<title>Prudle Fun Activities — Practice Mode Final</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -1233,7 +1233,7 @@ function setupActorPanel(){
       `<option value="">Select Your Open Course</option>` +
       courses.map(course=>`
         <option value="${esc(course.id)}">
-          ${esc(course ? getCourseName(course) : "Practice Mode — No Course Selected")}
+          ${esc(getCourseName(course))}
           — ${esc(getBranch(course))}
           — ${esc(getSection(course))}
           — ${esc(getPeriod(course))}
@@ -1340,23 +1340,10 @@ function getSourceCourseForActivity(activity){
   ) || null;
 }
 
-function hasSelectedOpenCourse(){
-  return Boolean(
-    CURRENT_COURSE &&
-    CURRENT_COURSE.id &&
-    OPEN_COURSES_CACHE.some(
-      course=>course.id === CURRENT_COURSE.id
-    )
-  );
-}
-
 async function recordActivityUsageStart(){
 
-  /*
-    اللعب بدون دورة مسموح، لكن لا نسجل أي استخدام
-    أو بيانات مرتبطة بالتقارير بدون دورة مفتوحة مختارة.
-  */
-  if(!hasSelectedOpenCourse()){
+  /* لا تنشئ سجل استخدام عند عدم اختيار دورة */
+  if(!CURRENT_COURSE || !CURRENT_COURSE.id){
     CURRENT_USAGE_ID = "";
     return;
   }
@@ -1652,22 +1639,9 @@ async function loadStudentActivities(){
       const sourceCourse =
         findCourseForActivity(activity);
 
-      /*
-        Trainer/Admin:
-        Use only the course selected from the dropdown.
-        Do not fall back to the activity source course, because
-        an empty dropdown must mean Practice Mode with no save.
-
-        Student/Guest:
-        Continue using the activity-linked open course.
-      */
-      const isTrainerOrAdmin =
-        getLoginRole() === "trainer" ||
-        getLoginRole() === "admin";
-
-      const course = isTrainerOrAdmin
-        ? getSelectedTargetCourse(activity)
-        : sourceCourse;
+      const course =
+        getSelectedTargetCourse(activity) ||
+        sourceCourse;
 
       const questionCount =
         activity.questions?.length || 0;
@@ -1699,11 +1673,7 @@ async function loadStudentActivities(){
           <div class="activity-meta">
             <span class="mini">
               <i class="fa-solid fa-book"></i>
-              ${esc(
-                course
-                  ? getCourseName(course)
-                  : "Practice Mode — No Course Selected"
-              )}
+              ${esc(getCourseName(course))}
             </span>
 
             <span class="mini">
@@ -1893,14 +1863,11 @@ function renderTeamNameInputs(){
 function confirmTeamSetup(){
 
   /*
-    النشاط يجب أن يكون موجودًا فقط.
-    اختيار الدورة غير إلزامي، لذلك يسمح ببدء اللعب
-    في Practice Mode عند عدم اختيار دورة مفتوحة.
+    اختيار الدورة غير إلزامي.
+    يكفي وجود النشاط حتى يبدأ اللعب في Practice Mode.
   */
   if(!CURRENT_ACTIVITY){
-    alert(
-      "The activity is unavailable."
-    );
+    alert("The activity is unavailable.");
     return;
   }
 
@@ -2011,9 +1978,7 @@ function confirmTeamSetup(){
   document
     .getElementById("playingCourseInfo")
     .textContent = [
-      hasSelectedOpenCourse()
-        ? getCourseName(CURRENT_COURSE)
-        : "Practice Mode — Result Not Saved",
+      getCourseName(CURRENT_COURSE),
       getBranch(
         CURRENT_COURSE,
         CURRENT_ACTIVITY
@@ -3138,7 +3103,7 @@ async function finishActivity(
     .getElementById("resultCourse")
     .textContent =
       `${
-        hasSelectedOpenCourse()
+        CURRENT_COURSE?.id
           ? getCourseName(CURRENT_COURSE)
           : "Practice Mode — No Course Selected"
       } — ${
@@ -3188,24 +3153,12 @@ async function finishActivity(
   launchBigConfetti();
 
   /*
-    عند عدم اختيار دورة مفتوحة:
-    - تظهر النتيجة للمستخدم بشكل طبيعي.
-    - لا تُحفظ في FunActivityResults.
-    - لا تُرسل إلى صفحة التقارير.
-    - لا يُحدّث FunActivityUsage.
+    مهم جدًا: عند عدم اختيار دورة مفتوحة،
+    نعرض النتيجة فقط ولا نحفظ أي سجل في التقارير.
   */
-  if(!hasSelectedOpenCourse()){
+  if(!CURRENT_COURSE || !CURRENT_COURSE.id){
     CURRENT_USAGE_ID = "";
-
-    toast(
-      "Practice completed — result was not saved because no open course was selected."
-    );
-
-    window.scrollTo({
-      top:0,
-      behavior:"smooth"
-    });
-
+    toast("Practice Mode: result was not saved because no course was selected.");
     return;
   }
 
@@ -3461,7 +3414,10 @@ async function finishActivity(
 }
 
 function restartGame(){
-  if(!CURRENT_ACTIVITY){
+  if(
+    !CURRENT_ACTIVITY ||
+    !CURRENT_COURSE
+  ){
     return;
   }
 
