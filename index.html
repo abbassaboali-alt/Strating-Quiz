@@ -912,24 +912,31 @@ let CURRENT_TEAM_INDEX = 0;
 
 let CURRENT_USAGE_ID = "";
 
-const LOGIN_USERNAME =
-  String(
+function getLoginUsername(){
+  return String(
     localStorage.getItem("username") ||
+    localStorage.getItem("trainerName") ||
+    localStorage.getItem("userName") ||
     ""
   ).trim();
+}
 
-const LOGIN_ROLE =
-  String(
+function getLoginRole(){
+  return String(
     localStorage.getItem("role") ||
     ""
-  ).trim().toLowerCase();
+  )
+  .trim()
+  .toLowerCase();
+}
 
-const LOGIN_STUDENT_ID =
-  String(
+function getLoginStudentId(){
+  return String(
     localStorage.getItem("studentID") ||
     localStorage.getItem("student_iqama") ||
     ""
   ).trim();
+}
 
 
 function esc(value){
@@ -1069,30 +1076,39 @@ function toast(message){
 
 function getActorData(){
 
-  if(LOGIN_ROLE === "trainer"){
+  const role =
+    getLoginRole();
+
+  const username =
+    getLoginUsername();
+
+  const studentId =
+    getLoginStudentId();
+
+  if(role === "trainer"){
     return {
       role:"trainer",
-      username:LOGIN_USERNAME || "Trainer",
-      id:LOGIN_USERNAME || "",
-      name:LOGIN_USERNAME || "Trainer"
+      username:username || "Trainer",
+      id:username || "",
+      name:username || "Trainer"
     };
   }
 
-  if(LOGIN_ROLE === "admin"){
+  if(role === "admin"){
     return {
       role:"admin",
-      username:LOGIN_USERNAME || "Admin",
-      id:LOGIN_USERNAME || "",
-      name:LOGIN_USERNAME || "Admin"
+      username:username || "Admin",
+      id:username || "",
+      name:username || "Admin"
     };
   }
 
-  if(LOGIN_STUDENT_ID){
+  if(studentId){
     return {
       role:"student",
       username:"",
-      id:LOGIN_STUDENT_ID,
-      name:LOGIN_STUDENT_ID
+      id:studentId,
+      name:studentId
     };
   }
 
@@ -1106,19 +1122,64 @@ function getActorData(){
 
 function getTrainerCourses(){
 
-  if(LOGIN_ROLE === "admin"){
+  const role =
+    getLoginRole();
+
+  /*
+    Admin:
+    Can link any open course.
+  */
+
+  if(role === "admin"){
     return [...OPEN_COURSES_CACHE];
   }
 
-  if(LOGIN_ROLE !== "trainer"){
+  /*
+    Trainer:
+    Only courses assigned to the logged-in username.
+  */
+
+  if(role !== "trainer"){
     return [];
   }
 
-  const username = clean(LOGIN_USERNAME);
+  const username =
+    clean(
+      getLoginUsername()
+    );
 
-  return OPEN_COURSES_CACHE.filter(course=>
-    clean(getTrainer(course)) === username
-  );
+  if(!username){
+    return [];
+  }
+
+  return OPEN_COURSES_CACHE.filter(course=>{
+
+    const possibleTrainerValues = [
+      getTrainer(course),
+      course.trainer,
+      course.Trainer,
+      course.trainerName,
+      course.TrainerName,
+      course.courseTrainer,
+      course.CourseTrainer,
+      course.instructor,
+      course.Instructor,
+      course.teacher,
+      course.Teacher,
+      course.username,
+      course.userName,
+      course.trainerUsername,
+      course.TrainerUsername,
+      course.trainerEmail,
+      course.TrainerEmail
+    ]
+    .map(value=>clean(value))
+    .filter(Boolean);
+
+    return possibleTrainerValues.includes(
+      username
+    );
+  });
 }
 
 function setupActorPanel(){
@@ -1151,11 +1212,28 @@ function setupActorPanel(){
     const courses = getTrainerCourses();
     const previous = select.value;
 
+    if(!courses.length){
+
+      select.innerHTML =
+        `<option value="">No open courses assigned to ${esc(actor.name)}</option>`;
+
+      select.disabled = true;
+
+      info.innerHTML =
+        `<i class="fa-solid fa-user-tie"></i> ` +
+        `Trainer: <b>${esc(actor.name)}</b>` +
+        `<small>No open courses are currently assigned to this trainer.</small>`;
+
+      return;
+    }
+
+    select.disabled = false;
+
     select.innerHTML =
-      `<option value="">Select Course</option>` +
+      `<option value="">Select Your Open Course</option>` +
       courses.map(course=>`
         <option value="${esc(course.id)}">
-          ${esc(course ? getCourseName(course) : "Select your course above")}
+          ${esc(getCourseName(course))}
           — ${esc(getBranch(course))}
           — ${esc(getSection(course))}
           — ${esc(getPeriod(course))}
@@ -1185,8 +1263,10 @@ function setupActorPanel(){
 
     const previous = select.value;
 
+    select.disabled = false;
+
     select.innerHTML =
-      `<option value="">Select Course</option>` +
+      `<option value="">Select Any Open Course</option>` +
       OPEN_COURSES_CACHE.map(course=>`
         <option value="${esc(course.id)}">
           ${esc(getCourseName(course))}
@@ -1225,8 +1305,8 @@ function setupActorPanel(){
 function getSelectedTargetCourse(activity){
 
   if(
-    LOGIN_ROLE === "trainer" ||
-    LOGIN_ROLE === "admin"
+    getLoginRole() === "trainer" ||
+    getLoginRole() === "admin"
   ){
 
     const selectedId =
@@ -1506,8 +1586,8 @@ async function loadStudentActivities(){
         */
 
         if(
-          LOGIN_ROLE === "trainer" ||
-          LOGIN_ROLE === "admin"
+          getLoginRole() === "trainer" ||
+          getLoginRole() === "admin"
         ){
           return (
             status === "open" &&
@@ -2113,8 +2193,8 @@ function startActivity(activityId,courseId){
   if(!CURRENT_COURSE){
 
     if(
-      LOGIN_ROLE === "trainer" ||
-      LOGIN_ROLE === "admin"
+      getLoginRole() === "trainer" ||
+      getLoginRole() === "admin"
     ){
       alert(
         "Select the course that will use this activity first."
@@ -3613,6 +3693,49 @@ window.addEventListener(
   "beforeunload",
   ()=>{
     stopActivityTimer();
+  }
+);
+
+window.addEventListener(
+  "message",
+  event=>{
+
+    const data =
+      event.data || {};
+
+    if(
+      data.type !== "PRUDLE_AUTH"
+    ){
+      return;
+    }
+
+    if(data.username){
+      localStorage.setItem(
+        "username",
+        String(data.username)
+      );
+    }
+
+    if(data.role){
+      localStorage.setItem(
+        "role",
+        String(data.role)
+      );
+    }
+
+    if(data.loginDate){
+      localStorage.setItem(
+        "loginDate",
+        String(data.loginDate)
+      );
+    }
+
+    /*
+      Reload courses after authentication arrives
+      from the parent page/iframe wrapper.
+    */
+
+    loadStudentActivities();
   }
 );
 
