@@ -1639,9 +1639,21 @@ async function loadStudentActivities(){
       const sourceCourse =
         findCourseForActivity(activity);
 
+      /* الدورة المستخدمة للحفظ يجب أن تكون مختارة فعليًا */
+      const selectedTargetCourse =
+        getSelectedTargetCourse(activity);
+
       const course =
-        getSelectedTargetCourse(activity) ||
+        selectedTargetCourse ||
         sourceCourse;
+
+      const isStaff =
+        getLoginRole() === "trainer" ||
+        getLoginRole() === "admin";
+
+      const startCourseId = isStaff
+        ? (selectedTargetCourse?.id || "")
+        : (sourceCourse?.id || "");
 
       const questionCount =
         activity.questions?.length || 0;
@@ -1720,7 +1732,7 @@ async function loadStudentActivities(){
             type="button"
             onclick="startActivity(
               '${esc(activity.id)}',
-              '${esc(course?.id || "")}'
+              '${esc(startCourseId)}'
             )">
             <i class="fa-solid fa-play"></i>
             Start Activity
@@ -3414,10 +3426,7 @@ async function finishActivity(
 }
 
 function restartGame(){
-  if(
-    !CURRENT_ACTIVITY ||
-    !CURRENT_COURSE
-  ){
+  if(!CURRENT_ACTIVITY){
     return;
   }
 
