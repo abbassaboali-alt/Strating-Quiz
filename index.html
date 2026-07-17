@@ -709,13 +709,40 @@ button{font-family:inherit;cursor:pointer}
           Select the trainer course that will use this activity
         </label>
 
-        <select id="trainerTargetCourse" onchange="updateActivityStartButtons()">
+        <select id="trainerTargetCourse" onchange="renderAvailableActivities()">
           <option value="">Select Course</option>
         </select>
       </div>
     </div>
 
     <div class="panel">
+
+      <div class="field" style="margin-bottom:16px">
+        <label style="
+          display:block;
+          margin-bottom:7px;
+          font-weight:900;
+          color:var(--blue);
+        ">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          Search Quiz / Activity Name
+        </label>
+
+        <input
+          id="activitySearchInput"
+          type="search"
+          placeholder="Type the quiz or activity name..."
+          oninput="renderAvailableActivities()"
+          style="
+            width:100%;
+            border:1px solid var(--border);
+            border-radius:13px;
+            padding:12px 14px;
+            font-family:inherit;
+            outline:none;
+          ">
+      </div>
+
       <div id="openActivitiesBox" class="empty">
         Loading activities and open courses...
       </div>
@@ -1304,44 +1331,14 @@ function setupActorPanel(){
 
 function updateActivityStartButtons(){
 
-  const role =
-    getLoginRole();
-
-  const selectedId =
-    document
-      .getElementById(
-        "trainerTargetCourse"
-      )
-      ?.value ||
-    "";
-
   document
     .querySelectorAll(
       ".activity-start-btn"
     )
     .forEach(button=>{
-
-      if(
-        role === "trainer" ||
-        role === "admin"
-      ){
-        button.disabled =
-          !selectedId;
-
-        button.style.opacity =
-          selectedId
-            ? "1"
-            : ".5";
-
-        button.style.cursor =
-          selectedId
-            ? "pointer"
-            : "not-allowed";
-      }else{
-        button.disabled = false;
-        button.style.opacity = "1";
-        button.style.cursor = "pointer";
-      }
+      button.disabled = false;
+      button.style.opacity = "1";
+      button.style.cursor = "pointer";
     });
 }
 
@@ -1633,172 +1630,7 @@ async function loadStudentActivities(){
     ]);
 
     setupActorPanel();
-
-    const available = ACTIVITIES_CACHE
-      .filter(activity=>{
-        const status = clean(
-          activity.status || "open"
-        );
-
-        const questions =
-          Array.isArray(activity.questions)
-            ? activity.questions
-            : [];
-
-        /*
-          Trainer/Admin:
-          All open activities are available, even if created
-          for another trainer or another course.
-
-          Student/Guest:
-          The activity must still be linked to an open course.
-        */
-
-        if(
-          getLoginRole() === "trainer" ||
-          getLoginRole() === "admin"
-        ){
-          return (
-            status === "open" &&
-            questions.length > 0
-          );
-        }
-
-        return (
-          status === "open" &&
-          questions.length > 0 &&
-          findCourseForActivity(activity)
-        );
-      });
-
-    if(!available.length){
-      box.className = "empty";
-      box.textContent =
-        "No open activities are currently available.";
-      return;
-    }
-
-    box.className = "open-activity-list";
-
-    box.innerHTML = available.map(activity=>{
-      const sourceCourse =
-        findCourseForActivity(activity);
-
-      const course =
-        (
-          getLoginRole() === "trainer" ||
-          getLoginRole() === "admin"
-        )
-          ? getSelectedTargetCourse(activity)
-          : sourceCourse;
-
-      const questionCount =
-        activity.questions?.length || 0;
-
-      const timerText =
-        activity.timerType === "limited"
-          ? formatConfiguredTime(
-              Number(
-                activity.timerTotalSeconds ||
-                0
-              )
-            )
-          : "Open Time";
-
-      return `
-        <article class="open-activity-card">
-
-          <div class="open-badge">
-            <i class="fa-solid fa-circle-play"></i>
-            Open
-          </div>
-
-          <h3>${esc(activity.title || "Interactive Activity")}</h3>
-
-          <p style="color:var(--muted);min-height:44px">
-            ${esc(activity.description || "Educational and recreational activity")}
-          </p>
-
-          <div class="activity-meta">
-            <span class="mini">
-              <i class="fa-solid fa-book"></i>
-              ${esc(getCourseName(course))}
-            </span>
-
-            <span class="mini">
-              <i class="fa-solid fa-user-tie"></i>
-              ${esc(course ? getTrainer(course,activity) : "—")}
-            </span>
-
-            <span class="mini">
-              <i class="fa-solid fa-location-dot"></i>
-              ${esc(course ? getBranch(course,activity) : "—")}
-            </span>
-
-            <span class="mini">
-              <i class="fa-solid fa-users"></i>
-              ${esc(course ? getSection(course,activity) : "—")}
-            </span>
-
-            <span class="mini">
-              <i class="fa-solid fa-code-branch"></i>
-              Source:
-              ${esc(
-                sourceCourse
-                  ? getTrainer(sourceCourse,activity)
-                  : (
-                      activity.trainerName ||
-                      "Not specified"
-                    )
-              )}
-            </span>
-
-            <span class="mini">
-              <i class="fa-solid fa-circle-question"></i>
-              ${questionCount} Questions
-            </span>
-
-            <span class="mini">
-              <i class="fa-solid fa-clock"></i>
-              ${esc(timerText)}
-            </span>
-          </div>
-
-          <button
-            class="btn btn-primary activity-start-btn"
-            type="button"
-            onclick="startActivity(
-              '${esc(activity.id)}',
-              '${
-                esc(
-                  (
-                    getLoginRole() === "trainer" ||
-                    getLoginRole() === "admin"
-                  )
-                    ? (
-                        document
-                          .getElementById(
-                            "trainerTargetCourse"
-                          )
-                          ?.value ||
-                        ""
-                      )
-                    : (
-                        course?.id ||
-                        ""
-                      )
-                )
-              }'
-            )">
-            <i class="fa-solid fa-play"></i>
-            Start Activity
-          </button>
-
-        </article>
-      `;
-    }).join("");
-
-    updateActivityStartButtons();
+    renderAvailableActivities();
 
   }catch(error){
     console.error(error);
@@ -1807,6 +1639,197 @@ async function loadStudentActivities(){
     box.textContent =
       "Unable to load activities. Check the internet connection and Firebase permissions.";
   }
+}
+
+function renderAvailableActivities(){
+
+  const box =
+    document.getElementById(
+      "openActivitiesBox"
+    );
+
+  const searchValue =
+    clean(
+      document
+        .getElementById(
+          "activitySearchInput"
+        )
+        ?.value ||
+      ""
+    );
+
+  const available = ACTIVITIES_CACHE
+    .filter(activity=>{
+
+      const status = clean(
+        activity.status || "open"
+      );
+
+      const questions =
+        Array.isArray(activity.questions)
+          ? activity.questions
+          : [];
+
+      if(
+        status !== "open" ||
+        questions.length <= 0
+      ){
+        return false;
+      }
+
+      if(
+        searchValue &&
+        !clean(
+          activity.title ||
+          activity.activityTitle ||
+          ""
+        ).includes(searchValue)
+      ){
+        return false;
+      }
+
+      /*
+        Trainer/Admin can use any open activity,
+        even when no course is selected.
+        The activity will work normally, but the
+        result will not be saved without a course.
+      */
+
+      if(
+        getLoginRole() === "trainer" ||
+        getLoginRole() === "admin"
+      ){
+        return true;
+      }
+
+      return Boolean(
+        findCourseForActivity(activity)
+      );
+    });
+
+  if(!available.length){
+    box.className = "empty";
+
+    box.textContent =
+      searchValue
+        ? "No quiz or activity matches your search."
+        : "No open activities are currently available.";
+
+    return;
+  }
+
+  box.className =
+    "open-activity-list";
+
+  box.innerHTML = available.map(activity=>{
+
+    const sourceCourse =
+      findCourseForActivity(activity);
+
+    const selectedCourse =
+      getSelectedTargetCourse(activity);
+
+    const course =
+      (
+        getLoginRole() === "trainer" ||
+        getLoginRole() === "admin"
+      )
+        ? selectedCourse
+        : sourceCourse;
+
+    const questionCount =
+      activity.questions?.length || 0;
+
+    const timerText =
+      activity.timerType === "limited"
+        ? formatConfiguredTime(
+            Number(
+              activity.timerTotalSeconds ||
+              0
+            )
+          )
+        : "Open Time";
+
+    const selectedCourseText =
+      course
+        ? getCourseName(course)
+        : "No course selected — result will not be saved";
+
+    return `
+      <article class="open-activity-card">
+
+        <div class="open-badge">
+          <i class="fa-solid fa-circle-play"></i>
+          Open
+        </div>
+
+        <h3>${esc(activity.title || "Interactive Activity")}</h3>
+
+        <p style="color:var(--muted);min-height:44px">
+          ${esc(activity.description || "Educational and recreational activity")}
+        </p>
+
+        <div class="activity-meta">
+
+          <span class="mini">
+            <i class="fa-solid fa-book"></i>
+            ${esc(selectedCourseText)}
+          </span>
+
+          ${
+            course
+              ? `
+                <span class="mini">
+                  <i class="fa-solid fa-user-tie"></i>
+                  ${esc(getTrainer(course,activity))}
+                </span>
+
+                <span class="mini">
+                  <i class="fa-solid fa-location-dot"></i>
+                  ${esc(getBranch(course,activity))}
+                </span>
+
+                <span class="mini">
+                  <i class="fa-solid fa-users"></i>
+                  ${esc(getSection(course,activity))}
+                </span>
+              `
+              : `
+                <span class="mini" style="background:#fff0ee;color:var(--red)">
+                  <i class="fa-solid fa-circle-info"></i>
+                  Play allowed — saving disabled
+                </span>
+              `
+          }
+
+          <span class="mini">
+            <i class="fa-solid fa-circle-question"></i>
+            ${questionCount} Questions
+          </span>
+
+          <span class="mini">
+            <i class="fa-solid fa-clock"></i>
+            ${esc(timerText)}
+          </span>
+        </div>
+
+        <button
+          class="btn btn-primary activity-start-btn"
+          type="button"
+          onclick="startActivity(
+            '${esc(activity.id)}',
+            '${esc(course?.id || "")}'
+          )">
+
+          <i class="fa-solid fa-play"></i>
+          Start Activity
+        </button>
+
+      </article>
+    `;
+  }).join("");
+
+  updateActivityStartButtons();
 }
 
 function formatConfiguredTime(totalSeconds){
@@ -1932,32 +1955,33 @@ function renderTeamNameInputs(){
 
 function confirmTeamSetup(){
 
-  if(
-    !CURRENT_ACTIVITY ||
-    !CURRENT_COURSE ||
-    !CURRENT_COURSE.id
-  ){
+  if(!CURRENT_ACTIVITY){
     alert(
-      "Select an open course first. The activity will not start and no report will be created."
+      "The activity is unavailable."
     );
-
     return;
   }
 
-  const selectedStillExists =
-    OPEN_COURSES_CACHE.some(
-      course=>
-        course.id ===
-        CURRENT_COURSE.id
-    );
+  /*
+    Course selection is optional for playing.
+    Without a selected open course, the activity
+    works normally but no usage/result is saved.
+  */
 
-  if(!selectedStillExists){
-    alert(
-      "The selected course is no longer open. Please choose another open course."
-    );
+  if(
+    CURRENT_COURSE &&
+    CURRENT_COURSE.id
+  ){
+    const selectedStillExists =
+      OPEN_COURSES_CACHE.some(
+        course=>
+          course.id ===
+          CURRENT_COURSE.id
+      );
 
-    backToActivities();
-    return;
+    if(!selectedStillExists){
+      CURRENT_COURSE = null;
+    }
   }
 
   TEAM_COUNT =
@@ -2067,19 +2091,31 @@ function confirmTeamSetup(){
   document
     .getElementById("playingCourseInfo")
     .textContent = [
-      getCourseName(CURRENT_COURSE),
-      getBranch(
-        CURRENT_COURSE,
-        CURRENT_ACTIVITY
-      ),
-      getSection(
-        CURRENT_COURSE,
-        CURRENT_ACTIVITY
-      ),
-      getTrainer(
-        CURRENT_COURSE,
-        CURRENT_ACTIVITY
-      ),
+      CURRENT_COURSE
+        ? getCourseName(CURRENT_COURSE)
+        : "No course selected — result will not be saved",
+
+      CURRENT_COURSE
+        ? getBranch(
+            CURRENT_COURSE,
+            CURRENT_ACTIVITY
+          )
+        : "",
+
+      CURRENT_COURSE
+        ? getSection(
+            CURRENT_COURSE,
+            CURRENT_ACTIVITY
+          )
+        : "",
+
+      CURRENT_COURSE
+        ? getTrainer(
+            CURRENT_COURSE,
+            CURRENT_ACTIVITY
+          )
+        : "",
+
       TEAM_COUNT +
         (
           TEAM_COUNT === 1
@@ -2311,20 +2347,6 @@ function startActivity(activityId,courseId){
     No fallback to the activity creator's course is allowed.
   */
 
-  if(
-    (
-      role === "trainer" ||
-      role === "admin"
-    ) &&
-    !selectedCourseId
-  ){
-    alert(
-      "Please select your open course before starting the activity."
-    );
-
-    return;
-  }
-
   CURRENT_COURSE =
     OPEN_COURSES_CACHE.find(
       item=>item.id === selectedCourseId
@@ -2358,20 +2380,6 @@ function startActivity(activityId,courseId){
     !CURRENT_ACTIVITY.questions.length
   ){
     alert("This activity does not contain questions.");
-    return;
-  }
-
-  if(
-    !CURRENT_COURSE ||
-    !CURRENT_COURSE.id
-  ){
-    alert(
-      "No open course was selected. The activity cannot start and no result will be saved."
-    );
-
-    CURRENT_ACTIVITY = null;
-    CURRENT_COURSE = null;
-
     return;
   }
 
@@ -3257,9 +3265,11 @@ async function finishActivity(
     .getElementById("resultCourse")
     .textContent =
       `${
-        getCourseName(
-          CURRENT_COURSE
-        )
+        CURRENT_COURSE
+          ? getCourseName(
+              CURRENT_COURSE
+            )
+          : "No course selected"
       } — ${
         CURRENT_ACTIVITY?.title ||
         ""
@@ -3316,8 +3326,13 @@ async function finishActivity(
     !CURRENT_COURSE.id
   ){
     toast(
-      "No course selected — result was not saved"
+      "Activity completed — no course selected, so the result was not saved"
     );
+
+    window.scrollTo({
+      top:0,
+      behavior:"smooth"
+    });
 
     return;
   }
@@ -3331,8 +3346,13 @@ async function finishActivity(
 
   if(!selectedCourseIsOpen){
     toast(
-      "Selected course is not open — result was not saved"
+      "Activity completed — selected course is not open, so the result was not saved"
     );
+
+    window.scrollTo({
+      top:0,
+      behavior:"smooth"
+    });
 
     return;
   }
@@ -3589,10 +3609,7 @@ async function finishActivity(
 }
 
 function restartGame(){
-  if(
-    !CURRENT_ACTIVITY ||
-    !CURRENT_COURSE
-  ){
+  if(!CURRENT_ACTIVITY){
     return;
   }
 
