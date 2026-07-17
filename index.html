@@ -1340,7 +1340,26 @@ function getSourceCourseForActivity(activity){
   ) || null;
 }
 
+function hasSelectedOpenCourse(){
+  return Boolean(
+    CURRENT_COURSE &&
+    CURRENT_COURSE.id &&
+    OPEN_COURSES_CACHE.some(
+      course=>course.id === CURRENT_COURSE.id
+    )
+  );
+}
+
 async function recordActivityUsageStart(){
+
+  /*
+    اللعب بدون دورة مسموح، لكن لا نسجل أي استخدام
+    أو بيانات مرتبطة بالتقارير بدون دورة مفتوحة مختارة.
+  */
+  if(!hasSelectedOpenCourse()){
+    CURRENT_USAGE_ID = "";
+    return;
+  }
 
   const actor = getActorData();
   const sourceCourse =
@@ -1973,7 +1992,9 @@ function confirmTeamSetup(){
   document
     .getElementById("playingCourseInfo")
     .textContent = [
-      getCourseName(CURRENT_COURSE),
+      hasSelectedOpenCourse()
+        ? getCourseName(CURRENT_COURSE)
+        : "Practice Mode — Result Not Saved",
       getBranch(
         CURRENT_COURSE,
         CURRENT_ACTIVITY
@@ -2205,24 +2226,6 @@ function startActivity(activityId,courseId){
 
   if(!CURRENT_ACTIVITY){
     alert("Unable to open the activity.");
-    return;
-  }
-
-  if(!CURRENT_COURSE){
-
-    if(
-      getLoginRole() === "trainer" ||
-      getLoginRole() === "admin"
-    ){
-      alert(
-        "Select the course that will use this activity first."
-      );
-    }else{
-      alert(
-        "This activity is not linked to an open course."
-      );
-    }
-
     return;
   }
 
@@ -3116,9 +3119,9 @@ async function finishActivity(
     .getElementById("resultCourse")
     .textContent =
       `${
-        getCourseName(
-          CURRENT_COURSE
-        )
+        hasSelectedOpenCourse()
+          ? getCourseName(CURRENT_COURSE)
+          : "Practice Mode — No Course Selected"
       } — ${
         CURRENT_ACTIVITY?.title ||
         ""
@@ -3164,6 +3167,28 @@ async function finishActivity(
     .textContent = message;
 
   launchBigConfetti();
+
+  /*
+    عند عدم اختيار دورة مفتوحة:
+    - تظهر النتيجة للمستخدم بشكل طبيعي.
+    - لا تُحفظ في FunActivityResults.
+    - لا تُرسل إلى صفحة التقارير.
+    - لا يُحدّث FunActivityUsage.
+  */
+  if(!hasSelectedOpenCourse()){
+    CURRENT_USAGE_ID = "";
+
+    toast(
+      "Practice completed — result was not saved because no open course was selected."
+    );
+
+    window.scrollTo({
+      top:0,
+      behavior:"smooth"
+    });
+
+    return;
+  }
 
   try{
     await db
@@ -3417,10 +3442,7 @@ async function finishActivity(
 }
 
 function restartGame(){
-  if(
-    !CURRENT_ACTIVITY ||
-    !CURRENT_COURSE
-  ){
+  if(!CURRENT_ACTIVITY){
     return;
   }
 
