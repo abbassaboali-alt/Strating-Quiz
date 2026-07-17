@@ -1892,12 +1892,14 @@ function renderTeamNameInputs(){
 
 function confirmTeamSetup(){
 
-  if(
-    !CURRENT_ACTIVITY ||
-    !CURRENT_COURSE
-  ){
+  /*
+    النشاط يجب أن يكون موجودًا فقط.
+    اختيار الدورة غير إلزامي، لذلك يسمح ببدء اللعب
+    في Practice Mode عند عدم اختيار دورة مفتوحة.
+  */
+  if(!CURRENT_ACTIVITY){
     alert(
-      "The activity or course is unavailable."
+      "The activity is unavailable."
     );
     return;
   }
