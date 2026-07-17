@@ -1233,7 +1233,7 @@ function setupActorPanel(){
       `<option value="">Select Your Open Course</option>` +
       courses.map(course=>`
         <option value="${esc(course.id)}">
-          ${esc(getCourseName(course))}
+          ${esc(course ? getCourseName(course) : "Practice Mode — No Course Selected")}
           — ${esc(getBranch(course))}
           — ${esc(getSection(course))}
           — ${esc(getPeriod(course))}
@@ -1652,9 +1652,22 @@ async function loadStudentActivities(){
       const sourceCourse =
         findCourseForActivity(activity);
 
-      const course =
-        getSelectedTargetCourse(activity) ||
-        sourceCourse;
+      /*
+        Trainer/Admin:
+        Use only the course selected from the dropdown.
+        Do not fall back to the activity source course, because
+        an empty dropdown must mean Practice Mode with no save.
+
+        Student/Guest:
+        Continue using the activity-linked open course.
+      */
+      const isTrainerOrAdmin =
+        getLoginRole() === "trainer" ||
+        getLoginRole() === "admin";
+
+      const course = isTrainerOrAdmin
+        ? getSelectedTargetCourse(activity)
+        : sourceCourse;
 
       const questionCount =
         activity.questions?.length || 0;
@@ -1686,7 +1699,11 @@ async function loadStudentActivities(){
           <div class="activity-meta">
             <span class="mini">
               <i class="fa-solid fa-book"></i>
-              ${esc(getCourseName(course))}
+              ${esc(
+                course
+                  ? getCourseName(course)
+                  : "Practice Mode — No Course Selected"
+              )}
             </span>
 
             <span class="mini">
