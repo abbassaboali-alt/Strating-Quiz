@@ -1419,6 +1419,24 @@ async function recordActivityUsageStart(){
     actorName:
       actor.name,
 
+    participantDepartment:
+      getSection(
+        CURRENT_COURSE
+      ),
+
+    participantBranch:
+      getBranch(
+        CURRENT_COURSE
+      ),
+
+    participantCourseId:
+      CURRENT_COURSE?.id || "",
+
+    participantCourseName:
+      getCourseName(
+        CURRENT_COURSE
+      ),
+
     status:"started",
 
     startedAt:
@@ -3202,6 +3220,29 @@ async function finishActivity(
         participantName:
           getActorData().name,
 
+        /*
+          These fields belong to the trainer who
+          used/answered the activity, not to the
+          trainer who originally created the questions.
+        */
+
+        participantDepartment:
+          getSection(
+            CURRENT_COURSE
+          ),
+
+        participantBranch:
+          getBranch(
+            CURRENT_COURSE
+          ),
+
+        participantCourseId:
+          CURRENT_COURSE?.id || "",
+
+        participantCourseName:
+          getCourseName(
+            CURRENT_COURSE
+          ),
 
         courseId:
           CURRENT_COURSE?.id || "",
