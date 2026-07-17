@@ -709,7 +709,7 @@ button{font-family:inherit;cursor:pointer}
           Select the trainer course that will use this activity
         </label>
 
-        <select id="trainerTargetCourse" onchange="loadStudentActivities()">
+        <select id="trainerTargetCourse" onchange="updateActivityStartButtons()">
           <option value="">Select Course</option>
         </select>
       </div>
@@ -1302,6 +1302,49 @@ function setupActorPanel(){
   }
 }
 
+function updateActivityStartButtons(){
+
+  const role =
+    getLoginRole();
+
+  const selectedId =
+    document
+      .getElementById(
+        "trainerTargetCourse"
+      )
+      ?.value ||
+    "";
+
+  document
+    .querySelectorAll(
+      ".activity-start-btn"
+    )
+    .forEach(button=>{
+
+      if(
+        role === "trainer" ||
+        role === "admin"
+      ){
+        button.disabled =
+          !selectedId;
+
+        button.style.opacity =
+          selectedId
+            ? "1"
+            : ".5";
+
+        button.style.cursor =
+          selectedId
+            ? "pointer"
+            : "not-allowed";
+      }else{
+        button.disabled = false;
+        button.style.opacity = "1";
+        button.style.cursor = "pointer";
+      }
+    });
+}
+
 function getSelectedTargetCourse(activity){
 
   if(
@@ -1341,6 +1384,14 @@ function getSourceCourseForActivity(activity){
 }
 
 async function recordActivityUsageStart(){
+
+  if(
+    !CURRENT_COURSE ||
+    !CURRENT_COURSE.id
+  ){
+    CURRENT_USAGE_ID = "";
+    return;
+  }
 
   const actor = getActorData();
   const sourceCourse =
@@ -1634,8 +1685,12 @@ async function loadStudentActivities(){
         findCourseForActivity(activity);
 
       const course =
-        getSelectedTargetCourse(activity) ||
-        sourceCourse;
+        (
+          getLoginRole() === "trainer" ||
+          getLoginRole() === "admin"
+        )
+          ? getSelectedTargetCourse(activity)
+          : sourceCourse;
 
       const questionCount =
         activity.questions?.length || 0;
@@ -1710,11 +1765,30 @@ async function loadStudentActivities(){
           </div>
 
           <button
-            class="btn btn-primary"
+            class="btn btn-primary activity-start-btn"
             type="button"
             onclick="startActivity(
               '${esc(activity.id)}',
-              '${esc(course?.id || "")}'
+              '${
+                esc(
+                  (
+                    getLoginRole() === "trainer" ||
+                    getLoginRole() === "admin"
+                  )
+                    ? (
+                        document
+                          .getElementById(
+                            "trainerTargetCourse"
+                          )
+                          ?.value ||
+                        ""
+                      )
+                    : (
+                        course?.id ||
+                        ""
+                      )
+                )
+              }'
             )">
             <i class="fa-solid fa-play"></i>
             Start Activity
@@ -1723,6 +1797,8 @@ async function loadStudentActivities(){
         </article>
       `;
     }).join("");
+
+    updateActivityStartButtons();
 
   }catch(error){
     console.error(error);
@@ -1858,11 +1934,29 @@ function confirmTeamSetup(){
 
   if(
     !CURRENT_ACTIVITY ||
-    !CURRENT_COURSE
+    !CURRENT_COURSE ||
+    !CURRENT_COURSE.id
   ){
     alert(
-      "The activity or course is unavailable."
+      "Select an open course first. The activity will not start and no report will be created."
     );
+
+    return;
+  }
+
+  const selectedStillExists =
+    OPEN_COURSES_CACHE.some(
+      course=>
+        course.id ===
+        CURRENT_COURSE.id
+    );
+
+  if(!selectedStillExists){
+    alert(
+      "The selected course is no longer open. Please choose another open course."
+    );
+
+    backToActivities();
     return;
   }
 
@@ -2194,14 +2288,47 @@ function startActivity(activityId,courseId){
       item=>item.id === activityId
     ) || null;
 
+  const role =
+    getLoginRole();
+
+  const selectedCourseId =
+    (
+      role === "trainer" ||
+      role === "admin"
+    )
+      ? (
+          document
+            .getElementById(
+              "trainerTargetCourse"
+            )
+            ?.value ||
+          ""
+        )
+      : courseId;
+
+  /*
+    Trainer/Admin must explicitly choose an open course.
+    No fallback to the activity creator's course is allowed.
+  */
+
+  if(
+    (
+      role === "trainer" ||
+      role === "admin"
+    ) &&
+    !selectedCourseId
+  ){
+    alert(
+      "Please select your open course before starting the activity."
+    );
+
+    return;
+  }
+
   CURRENT_COURSE =
     OPEN_COURSES_CACHE.find(
-      item=>item.id === courseId
-    ) ||
-    getSelectedTargetCourse(
-      CURRENT_ACTIVITY
-    ) ||
-    null;
+      item=>item.id === selectedCourseId
+    ) || null;
 
   if(!CURRENT_ACTIVITY){
     alert("Unable to open the activity.");
@@ -2231,6 +2358,20 @@ function startActivity(activityId,courseId){
     !CURRENT_ACTIVITY.questions.length
   ){
     alert("This activity does not contain questions.");
+    return;
+  }
+
+  if(
+    !CURRENT_COURSE ||
+    !CURRENT_COURSE.id
+  ){
+    alert(
+      "No open course was selected. The activity cannot start and no result will be saved."
+    );
+
+    CURRENT_ACTIVITY = null;
+    CURRENT_COURSE = null;
+
     return;
   }
 
@@ -3164,6 +3305,37 @@ async function finishActivity(
     .textContent = message;
 
   launchBigConfetti();
+
+  /*
+    Hard safety check:
+    never save a result without an explicitly selected open course.
+  */
+
+  if(
+    !CURRENT_COURSE ||
+    !CURRENT_COURSE.id
+  ){
+    toast(
+      "No course selected — result was not saved"
+    );
+
+    return;
+  }
+
+  const selectedCourseIsOpen =
+    OPEN_COURSES_CACHE.some(
+      course=>
+        course.id ===
+        CURRENT_COURSE.id
+    );
+
+  if(!selectedCourseIsOpen){
+    toast(
+      "Selected course is not open — result was not saved"
+    );
+
+    return;
+  }
 
   try{
     await db
