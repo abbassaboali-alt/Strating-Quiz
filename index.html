@@ -682,10 +682,33 @@ button{font-family:inherit;cursor:pointer}
     </div>
   </div>
 
-  <button class="btn btn-light" type="button" onclick="loadStudentActivities()">
+ <div style="display:flex;gap:10px;flex-wrap:wrap">
+
+  <button
+    class="btn btn-light"
+    type="button"
+    onclick="loadStudentActivities()">
+
     <i class="fa-solid fa-rotate-right"></i>
     Refresh
+
   </button>
+
+  <button
+    class="btn"
+    type="button"
+    onclick="logout()"
+    style="
+      background:#e74c3c;
+      color:#fff;
+    ">
+
+    <i class="fa-solid fa-right-from-bracket"></i>
+    Logout
+
+  </button>
+
+</div>
 </header>
 
 <main class="container">
@@ -885,7 +908,29 @@ firebase.initializeApp({
 });
 
 const db = firebase.firestore();
+function logout(){
 
+  localStorage.removeItem("username");
+  localStorage.removeItem("role");
+  localStorage.removeItem("loginDate");
+
+  sessionStorage.clear();
+
+  if(window.self !== window.top){
+
+    window.parent.postMessage(
+      "PRUDLE_LOGOUT",
+      "*"
+    );
+
+    return;
+  }
+
+  window.location.replace(
+    "https://www.prudle-education.com/log-in-out"
+  );
+
+}
 const ACTIVITIES_COLLECTION = "FunActivities";
 const COURSES_COLLECTION = "Courses";
 const RESULTS_COLLECTION = "FunActivityResults";
