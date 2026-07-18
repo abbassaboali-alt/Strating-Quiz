@@ -668,6 +668,87 @@ button{font-family:inherit;cursor:pointer}
   .play-top{flex-wrap:wrap}
   .progress-wrap{flex-basis:100%;order:3}
 }
+
+
+/* =====================================
+   RANDOM IMAGE QUESTION
+===================================== */
+.random-game{
+  text-align:center;
+}
+
+.random-display{
+  width:min(560px,100%);
+  min-height:350px;
+  margin:0 auto 18px;
+  padding:15px;
+  border:3px solid var(--blue2);
+  border-radius:25px;
+  background:#fff;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  box-shadow:0 15px 35px rgba(22,68,120,.15);
+  overflow:hidden;
+}
+
+.random-display.spinning{
+  animation:randomPulse .25s infinite alternate;
+}
+
+.random-display img{
+  width:100%;
+  max-height:330px;
+  object-fit:contain;
+  border-radius:17px;
+  background:#f3f7fb;
+}
+
+.random-display-text{
+  margin-top:13px;
+  font-size:22px;
+  font-weight:900;
+  color:var(--blue);
+  overflow-wrap:anywhere;
+}
+
+.random-placeholder{
+  color:var(--muted);
+  font-size:18px;
+  font-weight:800;
+  line-height:1.7;
+}
+
+.random-controls{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:15px;
+}
+
+.random-correct-btn{
+  background:var(--green);
+  color:#fff;
+}
+
+.random-wrong-btn{
+  background:var(--red);
+  color:#fff;
+}
+
+@keyframes randomPulse{
+  from{
+    transform:scale(.985);
+    box-shadow:0 8px 25px rgba(22,68,120,.12);
+  }
+  to{
+    transform:scale(1.015);
+    box-shadow:0 18px 38px rgba(244,185,66,.28);
+  }
+}
+
 </style>
 </head>
 
@@ -900,6 +981,12 @@ let CURRENT_QUESTION_INDEX = 0;
 let CURRENT_SCORE = 0;
 let ANSWER_LOCKED = false;
 let CURRENT_ORDER_SELECTION = [];
+
+/* Random Image Question state */
+let RANDOM_SPIN_INTERVAL = null;
+let RANDOM_STOP_TIMEOUT = null;
+let RANDOM_SELECTED_INDEX = -1;
+let RANDOM_IS_SPINNING = false;
 
 let ACTIVITY_TIMER_INTERVAL = null;
 let ACTIVITY_TIME_LEFT = 0;
@@ -1778,6 +1865,7 @@ function getDefaultTeamName(index){
 
 function prepareTeamSetup(){
 
+  clearRandomQuestionTimers();
   stopActivityTimer();
 
   TEAM_COUNT = 1;
@@ -2354,6 +2442,8 @@ async function finishActivityByTimeout(){
 }
 
 function renderStudentQuestion(){
+  clearRandomQuestionTimers();
+
   if(
     !CURRENT_ACTIVITY ||
     ACTIVITY_FINISHED
@@ -2496,6 +2586,14 @@ function renderStudentQuestion(){
     return;
   }
 
+  if(type === "random"){
+    renderRandomImageQuestion(
+      question,
+      answersBox
+    );
+    return;
+  }
+
   answersBox.className =
     "student-answers";
 
@@ -2533,6 +2631,289 @@ function renderStudentQuestion(){
 
       answersBox.appendChild(button);
     });
+}
+
+
+/* =====================================
+   RANDOM IMAGE QUESTION PLAYER
+===================================== */
+function clearRandomQuestionTimers(){
+  if(RANDOM_SPIN_INTERVAL){
+    clearInterval(RANDOM_SPIN_INTERVAL);
+    RANDOM_SPIN_INTERVAL = null;
+  }
+
+  if(RANDOM_STOP_TIMEOUT){
+    clearTimeout(RANDOM_STOP_TIMEOUT);
+    RANDOM_STOP_TIMEOUT = null;
+  }
+
+  RANDOM_IS_SPINNING = false;
+
+  const display =
+    document.getElementById("randomDisplay");
+
+  if(display){
+    display.classList.remove("spinning");
+  }
+}
+
+function getRandomQuestionItems(){
+  const question =
+    CURRENT_ACTIVITY
+      ?.questions?.[CURRENT_QUESTION_INDEX];
+
+  return Array.isArray(question?.answers)
+    ? question.answers.filter(item=>
+        String(item?.image || "").trim()
+      )
+    : [];
+}
+
+function renderRandomImageQuestion(question,answersBox){
+  clearRandomQuestionTimers();
+
+  RANDOM_SELECTED_INDEX = -1;
+  RANDOM_IS_SPINNING = false;
+
+  answersBox.className = "random-game";
+
+  const items =
+    Array.isArray(question.answers)
+      ? question.answers.filter(item=>
+          String(item?.image || "").trim()
+        )
+      : [];
+
+  if(items.length < 2){
+    answersBox.innerHTML = `
+      <div class="feedback bad">
+        This random question requires at least two images.
+      </div>
+    `;
+    return;
+  }
+
+  answersBox.innerHTML = `
+    <div id="randomDisplay" class="random-display">
+      <div class="random-placeholder">
+        <i class="fa-solid fa-images" style="font-size:44px;margin-bottom:10px"></i><br>
+        Press Start Random Selection.<br>
+        The images will change quickly and stop on one image.
+      </div>
+    </div>
+
+    <div class="random-controls">
+      <button
+        id="randomStartBtn"
+        class="btn btn-gold"
+        type="button"
+        onclick="startRandomImageSelection()">
+        <i class="fa-solid fa-shuffle"></i>
+        Start Random Selection
+      </button>
+
+      <button
+        id="randomCorrectBtn"
+        class="btn random-correct-btn hidden"
+        type="button"
+        onclick="gradeRandomAnswer(true)">
+        <i class="fa-solid fa-check"></i>
+        Correct
+      </button>
+
+      <button
+        id="randomWrongBtn"
+        class="btn random-wrong-btn hidden"
+        type="button"
+        onclick="gradeRandomAnswer(false)">
+        <i class="fa-solid fa-xmark"></i>
+        Wrong
+      </button>
+    </div>
+
+    <div class="play-summary-info" style="margin-top:13px">
+      The student answers verbally. The trainer then selects Correct or Wrong.
+    </div>
+  `;
+}
+
+function showRandomItem(index){
+  const items = getRandomQuestionItems();
+  const item = items[index];
+  const display =
+    document.getElementById("randomDisplay");
+
+  if(!display || !item){
+    return;
+  }
+
+  display.innerHTML = `
+    <img
+      src="${esc(item.image || "")}"
+      alt="Random question image"
+      onerror="this.style.display='none';this.nextElementSibling?.classList.remove('hidden')">
+
+    <div class="random-placeholder hidden">
+      The selected image could not be loaded.
+    </div>
+
+    ${
+      item.text
+        ? `<div class="random-display-text">${esc(item.text)}</div>`
+        : ""
+    }
+  `;
+}
+
+function startRandomImageSelection(){
+  if(
+    ANSWER_LOCKED ||
+    RANDOM_IS_SPINNING ||
+    ACTIVITY_FINISHED
+  ){
+    return;
+  }
+
+  const items = getRandomQuestionItems();
+
+  if(items.length < 2){
+    alert("This random question requires at least two images.");
+    return;
+  }
+
+  clearRandomQuestionTimers();
+
+  RANDOM_IS_SPINNING = true;
+  RANDOM_SELECTED_INDEX = -1;
+
+  const startButton =
+    document.getElementById("randomStartBtn");
+  const correctButton =
+    document.getElementById("randomCorrectBtn");
+  const wrongButton =
+    document.getElementById("randomWrongBtn");
+  const display =
+    document.getElementById("randomDisplay");
+
+  if(startButton){
+    startButton.disabled = true;
+    startButton.innerHTML = `
+      <i class="fa-solid fa-spinner fa-spin"></i>
+      Selecting...
+    `;
+  }
+
+  correctButton?.classList.add("hidden");
+  wrongButton?.classList.add("hidden");
+  display?.classList.add("spinning");
+
+  let previousIndex = -1;
+
+  RANDOM_SPIN_INTERVAL = setInterval(()=>{
+    let nextIndex = 0;
+
+    do{
+      nextIndex = Math.floor(
+        Math.random() * items.length
+      );
+    }while(
+      items.length > 1 &&
+      nextIndex === previousIndex
+    );
+
+    previousIndex = nextIndex;
+    showRandomItem(nextIndex);
+  },90);
+
+  const spinDuration =
+    2200 + Math.floor(Math.random() * 1400);
+
+  RANDOM_STOP_TIMEOUT = setTimeout(()=>{
+    if(RANDOM_SPIN_INTERVAL){
+      clearInterval(RANDOM_SPIN_INTERVAL);
+      RANDOM_SPIN_INTERVAL = null;
+    }
+
+    RANDOM_STOP_TIMEOUT = null;
+    RANDOM_SELECTED_INDEX = Math.floor(
+      Math.random() * items.length
+    );
+
+    showRandomItem(RANDOM_SELECTED_INDEX);
+    display?.classList.remove("spinning");
+    RANDOM_IS_SPINNING = false;
+
+    if(correctButton){
+      correctButton.classList.remove("hidden");
+      correctButton.disabled = false;
+    }
+
+    if(wrongButton){
+      wrongButton.classList.remove("hidden");
+      wrongButton.disabled = false;
+    }
+
+    if(startButton){
+      startButton.disabled = false;
+      startButton.innerHTML = `
+        <i class="fa-solid fa-rotate-right"></i>
+        Spin Again
+      `;
+    }
+  },spinDuration);
+}
+
+function gradeRandomAnswer(isCorrect){
+  if(
+    ANSWER_LOCKED ||
+    RANDOM_IS_SPINNING ||
+    RANDOM_SELECTED_INDEX < 0 ||
+    ACTIVITY_FINISHED
+  ){
+    return;
+  }
+
+  ANSWER_LOCKED = true;
+  clearRandomQuestionTimers();
+
+  const feedback =
+    document.getElementById("feedback");
+
+  feedback.className = "feedback";
+
+  if(isCorrect){
+    CURRENT_SCORE++;
+    feedback.textContent =
+      "✅ The trainer marked the answer as correct.";
+    feedback.classList.add("good");
+    launchSmallConfetti();
+    playCorrectSound();
+  }else{
+    feedback.textContent =
+      "❌ The trainer marked the answer as incorrect.";
+    feedback.classList.add("bad");
+    playWrongSound();
+  }
+
+  recordCurrentTeamAnswer(Boolean(isCorrect));
+
+  [
+    "randomCorrectBtn",
+    "randomWrongBtn",
+    "randomStartBtn"
+  ].forEach(id=>{
+    const button = document.getElementById(id);
+    if(button){
+      button.disabled = true;
+    }
+  });
+
+  document
+    .getElementById("scorePill")
+    .textContent = `⭐ ${CURRENT_SCORE}`;
+
+  showNextQuestionButton();
 }
 
 function chooseAnswer(answerIndex,clickedButton){
@@ -3034,6 +3415,8 @@ function showNextQuestionButton(){
 }
 
 function nextQuestionManually(){
+  clearRandomQuestionTimers();
+
   if(
     !ANSWER_LOCKED ||
     ACTIVITY_FINISHED
@@ -3061,6 +3444,8 @@ function nextQuestionManually(){
 async function finishActivity(
   finishedByTimeout = false
 ){
+  clearRandomQuestionTimers();
+
   if(ACTIVITY_FINISHED){
     return;
   }
@@ -3426,6 +3811,7 @@ async function finishActivity(
 }
 
 function restartGame(){
+  clearRandomQuestionTimers();
   if(!CURRENT_ACTIVITY){
     return;
   }
@@ -3480,6 +3866,7 @@ function restartGame(){
 }
 
 async function backToActivities(){
+  clearRandomQuestionTimers();
   stopActivityTimer();
 
   if(
