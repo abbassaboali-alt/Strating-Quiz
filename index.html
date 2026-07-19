@@ -993,6 +993,13 @@ let RANDOM_TIMER_STARTED = false;
   يمنع تكرار صوت حركة الصور بسرعة زائدة جدًا.
 */
 let LAST_RANDOM_MOVE_SOUND_TIME = 0;
+
+/*
+  AudioContext واحد يعاد استخدامه
+  بدلاً من إنشاء واحد جديد كل مرة.
+*/
+let SHARED_AUDIO_CONTEXT = null;
+
 let ACTIVITY_TIMER_INTERVAL = null;
 let ACTIVITY_TIME_LEFT = 0;
 let ACTIVITY_FINISHED = false;
@@ -4352,6 +4359,37 @@ async function backToActivities(){
     behavior:"smooth"
   });
 }
+function getSharedAudioContext(){
+
+  const AudioContextClass =
+    window.AudioContext ||
+    window.webkitAudioContext;
+
+  if(!AudioContextClass){
+    return null;
+  }
+
+  if(!SHARED_AUDIO_CONTEXT){
+
+    SHARED_AUDIO_CONTEXT =
+      new AudioContextClass();
+
+  }
+
+  if(
+    SHARED_AUDIO_CONTEXT.state ===
+    "suspended"
+  ){
+
+    SHARED_AUDIO_CONTEXT
+      .resume()
+      .catch(()=>{});
+
+  }
+
+  return SHARED_AUDIO_CONTEXT;
+
+}
 function playRandomMoveSound(){
 
   try{
@@ -4359,10 +4397,6 @@ function playRandomMoveSound(){
     const now =
       performance.now();
 
-    /*
-      منع تشغيل أصوات كثيرة جدًا فوق بعضها.
-      يسمح بصوت كل 70 ملي ثانية تقريبًا.
-    */
     if(
       now -
       LAST_RANDOM_MOVE_SOUND_TIME <
@@ -4374,16 +4408,12 @@ function playRandomMoveSound(){
     LAST_RANDOM_MOVE_SOUND_TIME =
       now;
 
-    const AudioContextClass =
-      window.AudioContext ||
-      window.webkitAudioContext;
+    const audioContext =
+      getSharedAudioContext();
 
-    if(!AudioContextClass){
+    if(!audioContext){
       return;
     }
-
-    const audioContext =
-      new AudioContextClass();
 
     const oscillator =
       audioContext.createOscillator();
@@ -4394,10 +4424,6 @@ function playRandomMoveSound(){
     oscillator.type =
       "square";
 
-    /*
-      تغيير بسيط عشوائي في النغمة
-      ليشبه حركة عجلة أو تبدل سريع.
-    */
     oscillator.frequency.value =
       500 +
       Math.floor(
@@ -4431,13 +4457,17 @@ function playRandomMoveSound(){
       audioContext.destination
     );
 
-    oscillator.start(
-      startTime
-    );
+    oscillator.start(startTime);
 
-    oscillator.stop(
-      endTime
-    );
+    oscillator.stop(endTime);
+
+    oscillator.onended = ()=>{
+
+      oscillator.disconnect();
+
+      gain.disconnect();
+
+    };
 
   }catch(error){
 
