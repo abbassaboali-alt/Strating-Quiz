@@ -992,6 +992,12 @@ let ACTIVITY_TIMER_INTERVAL = null;
 let ACTIVITY_TIME_LEFT = 0;
 let ACTIVITY_FINISHED = false;
 
+/*
+  آخر ثانية تم تشغيل صوت المؤقت عندها.
+  يمنع تكرار الصوت أكثر من مرة لنفس الثانية.
+*/
+let LAST_TIMER_TICK_SECOND = null;
+
 let TEAM_COUNT = 1;
 let TEAMS = [];
 let CURRENT_TEAM_INDEX = 0;
@@ -2354,9 +2360,14 @@ function startActivityTimer(){
     return;
   }
 
-  ACTIVITY_TIME_LEFT = totalSeconds;
+ACTIVITY_TIME_LEFT = totalSeconds;
 
-  updateActivityTimerDisplay();
+/*
+  تصفير آخر ثانية صوتية عند بدء سؤال جديد.
+*/
+LAST_TIMER_TICK_SECOND = null;
+
+updateActivityTimerDisplay();
 
   ACTIVITY_TIMER_INTERVAL =
     setInterval(()=>{
@@ -2383,16 +2394,29 @@ function startActivityTimer(){
 }
 
 function stopActivityTimer(){
+
   if(ACTIVITY_TIMER_INTERVAL){
+
     clearInterval(
       ACTIVITY_TIMER_INTERVAL
     );
 
-    ACTIVITY_TIMER_INTERVAL = null;
+    ACTIVITY_TIMER_INTERVAL =
+      null;
+
   }
+
+  /*
+    تصفير ذاكرة صوت Tick.
+    عند السؤال الجديد يسمح بتشغيل الصوت مرة أخرى.
+  */
+  LAST_TIMER_TICK_SECOND =
+    null;
+
 }
 
 function updateActivityTimerDisplay(){
+
   const display =
     document.getElementById(
       "activityTimerDisplay"
@@ -2401,11 +2425,15 @@ function updateActivityTimerDisplay(){
   const safe =
     Math.max(
       0,
-      Number(ACTIVITY_TIME_LEFT || 0)
+      Number(
+        ACTIVITY_TIME_LEFT || 0
+      )
     );
 
   const minutes =
-    Math.floor(safe / 60);
+    Math.floor(
+      safe / 60
+    );
 
   const seconds =
     safe % 60;
@@ -2416,13 +2444,48 @@ function updateActivityTimerDisplay(){
     ":" +
     String(seconds).padStart(2,"0");
 
-  if(safe <= 10){
-    display.style.background = "#e74c3c";
-  }else if(safe <= 30){
-    display.style.background = "#f39c12";
-  }else{
-    display.style.background = "#164478";
+  /*
+    تشغيل صوت العد فقط في آخر 10 ثوانٍ.
+
+    safe > 0:
+    حتى لا يصدر Tick عند وصول الوقت إلى صفر.
+
+    LAST_TIMER_TICK_SECOND !== safe:
+    يمنع تشغيل الصوت مرتين لنفس الثانية.
+  */
+  if(
+    safe <= 10 &&
+    safe > 0 &&
+    LAST_TIMER_TICK_SECOND !== safe
+  ){
+
+    LAST_TIMER_TICK_SECOND =
+      safe;
+
+    playTimerTickSound();
+
   }
+
+  /*
+    تغيير لون المؤقت حسب الوقت المتبقي.
+  */
+  if(safe <= 10){
+
+    display.style.background =
+      "#e74c3c";
+
+  }else if(safe <= 30){
+
+    display.style.background =
+      "#f39c12";
+
+  }else{
+
+    display.style.background =
+      "#164478";
+
+  }
+
 }
 
 async function finishActivityByTimeout(){
@@ -2460,9 +2523,8 @@ async function finishActivityByTimeout(){
 
     }else{
 
-      startActivityTimer();
-
       renderStudentQuestion();
+startActivityTimer();
 
     }
 
@@ -3422,11 +3484,9 @@ stopActivityTimer();
 }
 
 function resetTimerAfterAnswer(){
+
   /*
-    عند تسجيل أي إجابة:
-    - نوقف العد الحالي حتى لا ينتهي الوقت أثناء عرض النتيجة.
-    - نعيد شاشة المؤقت إلى المدة الأصلية.
-    - يبدأ العد فعليًا من جديد عند فتح السؤال التالي.
+    إيقاف مؤقت السؤال بعد تسجيل الإجابة.
   */
   stopActivityTimer();
 
@@ -3440,24 +3500,69 @@ function resetTimerAfterAnswer(){
       0
     );
 
+  const display =
+    document.getElementById(
+      "activityTimerDisplay"
+    );
+
   if(
     timerType !== "limited" ||
     totalSeconds <= 0
   ){
+
     ACTIVITY_TIME_LEFT = 0;
 
-    const display =
-      document.getElementById(
-        "activityTimerDisplay"
-      );
+    display.textContent =
+      "⏱ Open Time";
 
-    display.textContent = "⏱ Open Time";
-    display.style.background = "#17a673";
+    display.style.background =
+      "#17a673";
+
     return;
   }
 
-  ACTIVITY_TIME_LEFT = totalSeconds;
-  updateActivityTimerDisplay();
+  /*
+    إعادة قيمة الوقت للعرض فقط،
+    من دون استدعاء updateActivityTimerDisplay
+    حتى لا يصدر صوت Tick بعد الإجابة.
+  */
+  ACTIVITY_TIME_LEFT =
+    totalSeconds;
+
+  const minutes =
+    Math.floor(
+      totalSeconds / 60
+    );
+
+  const seconds =
+    totalSeconds % 60;
+
+  display.textContent =
+    "⏱ " +
+    String(minutes).padStart(2,"0") +
+    ":" +
+    String(seconds).padStart(2,"0");
+
+  if(totalSeconds <= 10){
+
+    display.style.background =
+      "#e74c3c";
+
+  }else if(totalSeconds <= 30){
+
+    display.style.background =
+      "#f39c12";
+
+  }else{
+
+    display.style.background =
+      "#164478";
+
+  }
+
+  LAST_TIMER_TICK_SECOND =
+    null;
+
 }
 
 function showNextQuestionButton(){
@@ -4068,7 +4173,75 @@ async function backToActivities(){
     behavior:"smooth"
   });
 }
+function playTimerTickSound(){
 
+  try{
+
+    const AudioContextClass =
+      window.AudioContext ||
+      window.webkitAudioContext;
+
+    if(!AudioContextClass){
+      return;
+    }
+
+    const audioContext =
+      new AudioContextClass();
+
+    const oscillator =
+      audioContext.createOscillator();
+
+    const gain =
+      audioContext.createGain();
+
+    /*
+      square يعطي صوت Tick واضح.
+      يمكنك تغييره إلى sine إذا أردت صوتًا أنعم.
+    */
+    oscillator.type = "square";
+
+    oscillator.frequency.value = 850;
+
+    const startTime =
+      audioContext.currentTime;
+
+    const endTime =
+      startTime + 0.07;
+
+    gain.gain.setValueAtTime(
+      0.0001,
+      startTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.12,
+      startTime + 0.01
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      endTime
+    );
+
+    oscillator.connect(gain);
+
+    gain.connect(
+      audioContext.destination
+    );
+
+    oscillator.start(startTime);
+    oscillator.stop(endTime);
+
+  }catch(error){
+
+    console.warn(
+      "Timer sound could not play:",
+      error
+    );
+
+  }
+
+}
 function playCorrectSound(){
   playToneSequence([
     {
