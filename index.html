@@ -987,7 +987,7 @@ let RANDOM_SPIN_INTERVAL = null;
 let RANDOM_STOP_TIMEOUT = null;
 let RANDOM_SELECTED_INDEX = -1;
 let RANDOM_IS_SPINNING = false;
-
+let RANDOM_TIMER_STARTED = false;
 let ACTIVITY_TIMER_INTERVAL = null;
 let ACTIVITY_TIME_LEFT = 0;
 let ACTIVITY_FINISHED = false;
@@ -1860,7 +1860,97 @@ function formatConfiguredTime(totalSeconds){
     String(seconds).padStart(2,"0")
   );
 }
+function prepareTimerForCurrentQuestion(){
 
+  stopActivityTimer();
+
+  const question =
+    CURRENT_ACTIVITY
+      ?.questions?.[CURRENT_QUESTION_INDEX];
+
+  const type =
+    question?.type || "mcq";
+
+  /*
+    سؤال الصور العشوائية:
+    نعرض الوقت فقط، ولا نبدأ العد
+    حتى يضغط المستخدم Start Random Selection.
+  */
+  if(type === "random"){
+
+    RANDOM_TIMER_STARTED = false;
+
+    const timerType =
+      CURRENT_ACTIVITY?.timerType ||
+      "open";
+
+    const totalSeconds =
+      Number(
+        CURRENT_ACTIVITY?.timerTotalSeconds ||
+        0
+      );
+
+    const display =
+      document.getElementById(
+        "activityTimerDisplay"
+      );
+
+    if(
+      timerType !== "limited" ||
+      totalSeconds <= 0
+    ){
+      ACTIVITY_TIME_LEFT = 0;
+
+      display.textContent =
+        "⏱ Open Time";
+
+      display.style.background =
+        "#17a673";
+
+      return;
+    }
+
+    ACTIVITY_TIME_LEFT =
+      totalSeconds;
+
+    const minutes =
+      Math.floor(totalSeconds / 60);
+
+    const seconds =
+      totalSeconds % 60;
+
+    display.textContent =
+      "⏱ " +
+      String(minutes).padStart(2,"0") +
+      ":" +
+      String(seconds).padStart(2,"0");
+
+    if(totalSeconds <= 10){
+
+      display.style.background =
+        "#e74c3c";
+
+    }else if(totalSeconds <= 30){
+
+      display.style.background =
+        "#f39c12";
+
+    }else{
+
+      display.style.background =
+        "#164478";
+
+    }
+
+    return;
+  }
+
+  /*
+    بقية أنواع الأسئلة:
+    يبدأ المؤقت مباشرة.
+  */
+  startActivityTimer();
+}
 
 function getDefaultTeamName(index){
   return "Team " +
@@ -2107,10 +2197,10 @@ function confirmTeamSetup(){
     .filter(Boolean)
     .join(" • ");
 
-  recordActivityUsageStart();
+recordActivityUsageStart();
 
-  startActivityTimer();
-  renderStudentQuestion();
+renderStudentQuestion();
+prepareTimerForCurrentQuestion();
 
   window.scrollTo({
     top:0,
@@ -2491,7 +2581,7 @@ function updateActivityTimerDisplay(){
 async function finishActivityByTimeout(){
 
   if(ACTIVITY_FINISHED) return;
-
+clearRandomQuestionTimers();
   ANSWER_LOCKED = true;
 
   stopActivityTimer();
@@ -2521,12 +2611,12 @@ async function finishActivityByTimeout(){
 
       finishActivity();
 
-    }else{
+}else{
 
-      renderStudentQuestion();
-startActivityTimer();
+  renderStudentQuestion();
+  prepareTimerForCurrentQuestion();
 
-    }
+}
 
   },700);
 
@@ -2858,6 +2948,7 @@ function showRandomItem(index){
 }
 
 function startRandomImageSelection(){
+
   if(
     ANSWER_LOCKED ||
     RANDOM_IS_SPINNING ||
@@ -2866,11 +2957,32 @@ function startRandomImageSelection(){
     return;
   }
 
-  const items = getRandomQuestionItems();
+  const items =
+    getRandomQuestionItems();
 
+  /*
+    التأكد من الصور أولًا،
+    ثم تشغيل المؤقت.
+  */
   if(items.length < 2){
-    alert("This random question requires at least two images.");
+
+    alert(
+      "This random question requires at least two images."
+    );
+
     return;
+  }
+
+  /*
+    يبدأ المؤقت عند الضغط الأول فقط.
+    Spin Again لا يعيد الوقت.
+  */
+  if(!RANDOM_TIMER_STARTED){
+
+    RANDOM_TIMER_STARTED = true;
+
+    startActivityTimer();
+
   }
 
   clearRandomQuestionTimers();
@@ -2879,80 +2991,147 @@ function startRandomImageSelection(){
   RANDOM_SELECTED_INDEX = -1;
 
   const startButton =
-    document.getElementById("randomStartBtn");
+    document.getElementById(
+      "randomStartBtn"
+    );
+
   const correctButton =
-    document.getElementById("randomCorrectBtn");
+    document.getElementById(
+      "randomCorrectBtn"
+    );
+
   const wrongButton =
-    document.getElementById("randomWrongBtn");
+    document.getElementById(
+      "randomWrongBtn"
+    );
+
   const display =
-    document.getElementById("randomDisplay");
+    document.getElementById(
+      "randomDisplay"
+    );
 
   if(startButton){
+
     startButton.disabled = true;
+
     startButton.innerHTML = `
       <i class="fa-solid fa-spinner fa-spin"></i>
       Selecting...
     `;
   }
 
-  correctButton?.classList.add("hidden");
-  wrongButton?.classList.add("hidden");
-  display?.classList.add("spinning");
+  correctButton?.classList.add(
+    "hidden"
+  );
+
+  wrongButton?.classList.add(
+    "hidden"
+  );
+
+  display?.classList.add(
+    "spinning"
+  );
 
   let previousIndex = -1;
 
-  RANDOM_SPIN_INTERVAL = setInterval(()=>{
-    let nextIndex = 0;
+  RANDOM_SPIN_INTERVAL =
+    setInterval(()=>{
 
-    do{
-      nextIndex = Math.floor(
-        Math.random() * items.length
+      let nextIndex = 0;
+
+      do{
+
+        nextIndex =
+          Math.floor(
+            Math.random() *
+            items.length
+          );
+
+      }while(
+        items.length > 1 &&
+        nextIndex === previousIndex
       );
-    }while(
-      items.length > 1 &&
-      nextIndex === previousIndex
-    );
 
-    previousIndex = nextIndex;
-    showRandomItem(nextIndex);
-  },90);
+      previousIndex =
+        nextIndex;
+
+      showRandomItem(
+        nextIndex
+      );
+
+    },90);
 
   const spinDuration =
-    2200 + Math.floor(Math.random() * 1400);
-
-  RANDOM_STOP_TIMEOUT = setTimeout(()=>{
-    if(RANDOM_SPIN_INTERVAL){
-      clearInterval(RANDOM_SPIN_INTERVAL);
-      RANDOM_SPIN_INTERVAL = null;
-    }
-
-    RANDOM_STOP_TIMEOUT = null;
-    RANDOM_SELECTED_INDEX = Math.floor(
-      Math.random() * items.length
+    2200 +
+    Math.floor(
+      Math.random() * 1400
     );
 
-    showRandomItem(RANDOM_SELECTED_INDEX);
-    display?.classList.remove("spinning");
-    RANDOM_IS_SPINNING = false;
+  RANDOM_STOP_TIMEOUT =
+    setTimeout(()=>{
 
-    if(correctButton){
-      correctButton.classList.remove("hidden");
-      correctButton.disabled = false;
-    }
+      if(RANDOM_SPIN_INTERVAL){
 
-    if(wrongButton){
-      wrongButton.classList.remove("hidden");
-      wrongButton.disabled = false;
-    }
+        clearInterval(
+          RANDOM_SPIN_INTERVAL
+        );
 
-    if(startButton){
-      startButton.disabled = false;
-      startButton.innerHTML = `
-        <i class="fa-solid fa-rotate-right"></i>
-        Spin Again
-      `;
-    }
-  },spinDuration);
+        RANDOM_SPIN_INTERVAL =
+          null;
+      }
+
+      RANDOM_STOP_TIMEOUT =
+        null;
+
+      RANDOM_SELECTED_INDEX =
+        Math.floor(
+          Math.random() *
+          items.length
+        );
+
+      showRandomItem(
+        RANDOM_SELECTED_INDEX
+      );
+
+      display?.classList.remove(
+        "spinning"
+      );
+
+      RANDOM_IS_SPINNING =
+        false;
+
+      if(correctButton){
+
+        correctButton
+          .classList
+          .remove("hidden");
+
+        correctButton.disabled =
+          false;
+      }
+
+      if(wrongButton){
+
+        wrongButton
+          .classList
+          .remove("hidden");
+
+        wrongButton.disabled =
+          false;
+      }
+
+      if(startButton){
+
+        startButton.disabled =
+          false;
+
+        startButton.innerHTML = `
+          <i class="fa-solid fa-rotate-right"></i>
+          Spin Again
+        `;
+      }
+
+    },spinDuration);
 }
 
 function gradeRandomAnswer(isCorrect){
@@ -3650,13 +3829,8 @@ function nextQuestionManually(){
     /*
       عرض السؤال الجديد أولًا
     */
-    renderStudentQuestion();
-
-    /*
-      تشغيل المؤقت من البداية
-      للسؤال الجديد
-    */
-    startActivityTimer();
+renderStudentQuestion();
+prepareTimerForCurrentQuestion();
 
   }else{
 
