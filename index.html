@@ -3385,7 +3385,49 @@ function checkOrderAnswer(){
   showNextQuestionButton();
 }
 
+function resetTimerAfterAnswer(){
+  /*
+    عند تسجيل أي إجابة:
+    - نوقف العد الحالي حتى لا ينتهي الوقت أثناء عرض النتيجة.
+    - نعيد شاشة المؤقت إلى المدة الأصلية.
+    - يبدأ العد فعليًا من جديد عند فتح السؤال التالي.
+  */
+  stopActivityTimer();
+
+  const timerType =
+    CURRENT_ACTIVITY?.timerType ||
+    "open";
+
+  const totalSeconds =
+    Number(
+      CURRENT_ACTIVITY?.timerTotalSeconds ||
+      0
+    );
+
+  if(
+    timerType !== "limited" ||
+    totalSeconds <= 0
+  ){
+    ACTIVITY_TIME_LEFT = 0;
+
+    const display =
+      document.getElementById(
+        "activityTimerDisplay"
+      );
+
+    display.textContent = "⏱ Open Time";
+    display.style.background = "#17a673";
+    return;
+  }
+
+  ACTIVITY_TIME_LEFT = totalSeconds;
+  updateActivityTimerDisplay();
+}
+
 function showNextQuestionButton(){
+  /* إعادة المؤقت مباشرة بعد الإجابة */
+  resetTimerAfterAnswer();
+
   const area =
     document.getElementById(
       "nextQuestionArea"
@@ -3435,6 +3477,8 @@ function nextQuestionManually(){
     CURRENT_QUESTION_INDEX <
     CURRENT_ACTIVITY.questions.length
   ){
+    /* يبدأ المؤقت من كامل المدة مع كل سؤال جديد */
+    startActivityTimer();
     renderStudentQuestion();
   }else{
     finishActivity(false);
