@@ -988,6 +988,11 @@ let RANDOM_STOP_TIMEOUT = null;
 let RANDOM_SELECTED_INDEX = -1;
 let RANDOM_IS_SPINNING = false;
 let RANDOM_TIMER_STARTED = false;
+
+/*
+  يمنع تكرار صوت حركة الصور بسرعة زائدة جدًا.
+*/
+let LAST_RANDOM_MOVE_SOUND_TIME = 0;
 let ACTIVITY_TIMER_INTERVAL = null;
 let ACTIVITY_TIME_LEFT = 0;
 let ACTIVITY_FINISHED = false;
@@ -2830,7 +2835,7 @@ function clearRandomQuestionTimers(){
   }
 
   RANDOM_IS_SPINNING = false;
-
+LAST_RANDOM_MOVE_SOUND_TIME = 0;
   const display =
     document.getElementById("randomDisplay");
 
@@ -3058,7 +3063,7 @@ function startRandomImageSelection(){
       showRandomItem(
         nextIndex
       );
-
+playRandomMoveSound();
     },90);
 
   const spinDuration =
@@ -3146,7 +3151,7 @@ function gradeRandomAnswer(isCorrect){
 
   ANSWER_LOCKED = true;
   clearRandomQuestionTimers();
-
+LAST_RANDOM_MOVE_SOUND_TIME = 0;
   const feedback =
     document.getElementById("feedback");
 
@@ -4346,6 +4351,103 @@ async function backToActivities(){
     top:0,
     behavior:"smooth"
   });
+}
+function playRandomMoveSound(){
+
+  try{
+
+    const now =
+      performance.now();
+
+    /*
+      منع تشغيل أصوات كثيرة جدًا فوق بعضها.
+      يسمح بصوت كل 70 ملي ثانية تقريبًا.
+    */
+    if(
+      now -
+      LAST_RANDOM_MOVE_SOUND_TIME <
+      70
+    ){
+      return;
+    }
+
+    LAST_RANDOM_MOVE_SOUND_TIME =
+      now;
+
+    const AudioContextClass =
+      window.AudioContext ||
+      window.webkitAudioContext;
+
+    if(!AudioContextClass){
+      return;
+    }
+
+    const audioContext =
+      new AudioContextClass();
+
+    const oscillator =
+      audioContext.createOscillator();
+
+    const gain =
+      audioContext.createGain();
+
+    oscillator.type =
+      "square";
+
+    /*
+      تغيير بسيط عشوائي في النغمة
+      ليشبه حركة عجلة أو تبدل سريع.
+    */
+    oscillator.frequency.value =
+      500 +
+      Math.floor(
+        Math.random() * 220
+      );
+
+    const startTime =
+      audioContext.currentTime;
+
+    const endTime =
+      startTime + 0.035;
+
+    gain.gain.setValueAtTime(
+      0.0001,
+      startTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.045,
+      startTime + 0.005
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      endTime
+    );
+
+    oscillator.connect(gain);
+
+    gain.connect(
+      audioContext.destination
+    );
+
+    oscillator.start(
+      startTime
+    );
+
+    oscillator.stop(
+      endTime
+    );
+
+  }catch(error){
+
+    console.warn(
+      "Random movement sound could not play:",
+      error
+    );
+
+  }
+
 }
 function playTimerTickSound(){
 
