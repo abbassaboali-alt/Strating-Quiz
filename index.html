@@ -749,6 +749,130 @@ button{font-family:inherit;cursor:pointer}
   }
 }
 
+
+/* =====================================
+   WHEEL OF FORTUNE QUESTION
+===================================== */
+.wheel-game{
+  text-align:center;
+}
+
+.wheel-wrap{
+  position:relative;
+  width:min(520px,92vw);
+  aspect-ratio:1;
+  margin:0 auto 18px;
+}
+
+.wheel-pointer{
+  position:absolute;
+  left:50%;
+  top:-8px;
+  transform:translateX(-50%);
+  z-index:5;
+  font-size:48px;
+  color:var(--red);
+  filter:drop-shadow(0 4px 4px rgba(0,0,0,.22));
+}
+
+.wheel-disc{
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  border:10px solid #fff;
+  box-shadow:0 18px 45px rgba(22,68,120,.22);
+  position:relative;
+  overflow:hidden;
+  transition:transform 4.4s cubic-bezier(.12,.72,.12,1);
+}
+
+.wheel-label{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:42%;
+  transform-origin:0 0;
+  text-align:right;
+  font-size:14px;
+  font-weight:900;
+  color:#fff;
+  text-shadow:0 2px 4px rgba(0,0,0,.45);
+  padding-right:12px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.wheel-center{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:82px;
+  height:82px;
+  border-radius:50%;
+  background:#fff;
+  border:7px solid var(--gold);
+  display:grid;
+  place-items:center;
+  font-size:35px;
+  z-index:3;
+  box-shadow:0 5px 16px rgba(0,0,0,.2);
+}
+
+.wheel-result-card{
+  margin:16px auto 0;
+  max-width:720px;
+  border:2px solid var(--gold);
+  border-radius:18px;
+  padding:17px;
+  background:linear-gradient(135deg,#fff8dd,#fff);
+}
+
+.wheel-result-category{
+  font-size:22px;
+  font-weight:900;
+  color:var(--blue);
+}
+
+.wheel-result-question{
+  font-size:20px;
+  font-weight:800;
+  line-height:1.7;
+  margin-top:8px;
+}
+
+.wheel-result-card img{
+  max-width:100%;
+  max-height:280px;
+  object-fit:contain;
+  border-radius:14px;
+  margin-top:12px;
+}
+
+.wheel-controls{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:15px;
+}
+
+.wheel-correct{
+  background:var(--green);
+  color:#fff;
+}
+
+.wheel-wrong{
+  background:var(--red);
+  color:#fff;
+}
+
+@media(max-width:600px){
+  .wheel-label{font-size:11px}
+  .wheel-pointer{font-size:40px}
+}
+
 </style>
 </head>
 
@@ -988,6 +1112,14 @@ let RANDOM_STOP_TIMEOUT = null;
 let RANDOM_SELECTED_INDEX = -1;
 let RANDOM_IS_SPINNING = false;
 let RANDOM_TIMER_STARTED = false;
+
+/* Wheel of Fortune state */
+let WHEEL_IS_SPINNING = false;
+let WHEEL_SELECTED_INDEX = -1;
+let WHEEL_ROTATION = 0;
+let WHEEL_POINTS_MULTIPLIER = 1;
+let WHEEL_STOP_TIMEOUT = null;
+let WHEEL_TIMER_STARTED = false;
 
 /*
   يمنع تكرار صوت حركة الصور بسرعة زائدة جدًا.
@@ -1884,13 +2016,22 @@ function prepareTimerForCurrentQuestion(){
     question?.type || "mcq";
 
   /*
-    سؤال الصور العشوائية:
+    سؤال الصور العشوائية أو عجلة الحظ:
     نعرض الوقت فقط، ولا نبدأ العد
-    حتى يضغط المستخدم Start Random Selection.
+    حتى يضغط المستخدم زر التشغيل.
   */
-  if(type === "random"){
+  if(
+    type === "random" ||
+    type === "wheel"
+  ){
 
-    RANDOM_TIMER_STARTED = false;
+    if(type === "random"){
+      RANDOM_TIMER_STARTED = false;
+    }
+
+    if(type === "wheel"){
+      WHEEL_TIMER_STARTED = false;
+    }
 
     const timerType =
       CURRENT_ACTIVITY?.timerType ||
@@ -1974,6 +2115,7 @@ function getDefaultTeamName(index){
 function prepareTeamSetup(){
 
   clearRandomQuestionTimers();
+  clearWheelState();
   stopActivityTimer();
 
   TEAM_COUNT = 1;
@@ -2593,7 +2735,9 @@ function updateActivityTimerDisplay(){
 async function finishActivityByTimeout(){
 
   if(ACTIVITY_FINISHED) return;
-clearRandomQuestionTimers();
+
+  clearRandomQuestionTimers();
+  clearWheelState();
   ANSWER_LOCKED = true;
 
   stopActivityTimer();
@@ -2636,6 +2780,7 @@ clearRandomQuestionTimers();
 
 function renderStudentQuestion(){
   clearRandomQuestionTimers();
+  clearWheelState();
 
   if(
     !CURRENT_ACTIVITY ||
@@ -2781,6 +2926,14 @@ function renderStudentQuestion(){
 
   if(type === "random"){
     renderRandomImageQuestion(
+      question,
+      answersBox
+    );
+    return;
+  }
+
+  if(type === "wheel"){
+    renderWheelQuestion(
       question,
       answersBox
     );
@@ -3204,6 +3357,606 @@ stopActivityTimer();
 */
   showNextQuestionButton();
 }
+
+
+/* =====================================
+   WHEEL OF FORTUNE PLAYER
+===================================== */
+
+function clearWheelState(){
+
+  if(WHEEL_STOP_TIMEOUT){
+    clearTimeout(WHEEL_STOP_TIMEOUT);
+    WHEEL_STOP_TIMEOUT = null;
+  }
+
+  WHEEL_IS_SPINNING = false;
+  WHEEL_SELECTED_INDEX = -1;
+  WHEEL_POINTS_MULTIPLIER = 1;
+
+  const disc =
+    document.getElementById(
+      "wheelDisc"
+    );
+
+  if(disc){
+    disc.style.transition = "none";
+  }
+}
+
+function getWheelItems(){
+
+  const question =
+    CURRENT_ACTIVITY
+      ?.questions?.[CURRENT_QUESTION_INDEX];
+
+  return Array.isArray(question?.answers)
+    ? question.answers.filter(item=>
+        String(item?.text || "").trim()
+      )
+    : [];
+}
+
+function getWheelColors(count){
+
+  const colors = [
+    "#164478",
+    "#f4b942",
+    "#17a673",
+    "#e74c3c",
+    "#7f5af0",
+    "#00a8cc",
+    "#f08a24",
+    "#34495e",
+    "#c0392b",
+    "#16a085",
+    "#8e44ad",
+    "#2980b9"
+  ];
+
+  return Array.from(
+    {length:count},
+    (_,index)=>
+      colors[index % colors.length]
+  );
+}
+
+function renderWheelQuestion(
+  question,
+  answersBox
+){
+
+  clearWheelState();
+
+  const items =
+    Array.isArray(question.answers)
+      ? question.answers.filter(item=>
+          String(item?.text || "").trim()
+        )
+      : [];
+
+  answersBox.className =
+    "wheel-game";
+
+  WHEEL_SELECTED_INDEX = -1;
+  WHEEL_IS_SPINNING = false;
+  WHEEL_POINTS_MULTIPLIER = 1;
+
+  if(items.length < 2){
+
+    answersBox.innerHTML = `
+      <div class="feedback bad">
+        This wheel requires at least two sections.
+      </div>
+    `;
+
+    return;
+  }
+
+  const colors =
+    getWheelColors(items.length);
+
+  const step =
+    360 / items.length;
+
+  const gradient =
+    items.map(
+      (_,index)=>
+        `${colors[index]} ${index * step}deg ${(index + 1) * step}deg`
+    ).join(",");
+
+  answersBox.innerHTML = `
+    <div class="wheel-wrap">
+
+      <div class="wheel-pointer">
+        ▼
+      </div>
+
+      <div
+        id="wheelDisc"
+        class="wheel-disc"
+        style="background:conic-gradient(${gradient})">
+
+        ${
+          items.map((item,index)=>`
+            <div
+              class="wheel-label"
+              style="
+                transform:
+                  rotate(${index * step + step / 2}deg)
+                  translateY(-50%);
+              ">
+              ${esc(item.text)}
+            </div>
+          `).join("")
+        }
+
+        <div class="wheel-center">
+          🎡
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="wheel-controls">
+
+      <button
+        id="wheelSpinBtn"
+        class="btn btn-gold"
+        type="button"
+        onclick="spinWheel()">
+
+        <i class="fa-solid fa-rotate"></i>
+        Spin Wheel
+
+      </button>
+
+      <button
+        id="wheelCorrectBtn"
+        class="btn wheel-correct hidden"
+        type="button"
+        onclick="gradeWheelAnswer(true)">
+
+        <i class="fa-solid fa-check"></i>
+        Correct
+
+      </button>
+
+      <button
+        id="wheelWrongBtn"
+        class="btn wheel-wrong hidden"
+        type="button"
+        onclick="gradeWheelAnswer(false)">
+
+        <i class="fa-solid fa-xmark"></i>
+        Wrong
+
+      </button>
+
+    </div>
+
+    <div
+      id="wheelResult"
+      class="wheel-result-card hidden">
+    </div>
+
+    <div
+      class="play-summary-info"
+      style="margin-top:13px">
+
+      Spin the wheel, let the student complete the selected challenge,
+      then choose Correct or Wrong.
+
+    </div>
+  `;
+}
+
+function spinWheel(){
+
+  if(
+    ANSWER_LOCKED ||
+    ACTIVITY_FINISHED ||
+    WHEEL_IS_SPINNING
+  ){
+    return;
+  }
+
+  const items =
+    getWheelItems();
+
+  if(items.length < 2){
+
+    alert(
+      "This wheel requires at least two sections."
+    );
+
+    return;
+  }
+
+  /*
+    يبدأ المؤقت عند أول دوران فقط.
+    Spin Again لا يعيد المؤقت.
+  */
+  if(!WHEEL_TIMER_STARTED){
+
+    WHEEL_TIMER_STARTED = true;
+
+    startActivityTimer();
+
+  }
+
+  WHEEL_IS_SPINNING = true;
+
+  const button =
+    document.getElementById(
+      "wheelSpinBtn"
+    );
+
+  const disc =
+    document.getElementById(
+      "wheelDisc"
+    );
+
+  const correctButton =
+    document.getElementById(
+      "wheelCorrectBtn"
+    );
+
+  const wrongButton =
+    document.getElementById(
+      "wheelWrongBtn"
+    );
+
+  const result =
+    document.getElementById(
+      "wheelResult"
+    );
+
+  if(!button || !disc){
+    WHEEL_IS_SPINNING = false;
+    return;
+  }
+
+  button.disabled = true;
+
+  button.innerHTML = `
+    <i class="fa-solid fa-spinner fa-spin"></i>
+    Spinning...
+  `;
+
+  correctButton?.classList.add(
+    "hidden"
+  );
+
+  wrongButton?.classList.add(
+    "hidden"
+  );
+
+  result?.classList.add(
+    "hidden"
+  );
+
+  WHEEL_SELECTED_INDEX =
+    Math.floor(
+      Math.random() *
+      items.length
+    );
+
+  const step =
+    360 / items.length;
+
+  const centerAngle =
+    WHEEL_SELECTED_INDEX *
+    step +
+    step / 2;
+
+  WHEEL_ROTATION +=
+    1440 +
+    (360 - centerAngle);
+
+  disc.style.transition =
+    "transform 4.4s cubic-bezier(.12,.72,.12,1)";
+
+  requestAnimationFrame(()=>{
+
+    disc.style.transform =
+      `rotate(${WHEEL_ROTATION}deg)`;
+
+  });
+
+  playWheelSpinSound();
+
+  WHEEL_STOP_TIMEOUT =
+    setTimeout(()=>{
+
+      WHEEL_STOP_TIMEOUT = null;
+
+      if(
+        ACTIVITY_FINISHED ||
+        ANSWER_LOCKED
+      ){
+        WHEEL_IS_SPINNING = false;
+        return;
+      }
+
+      WHEEL_IS_SPINNING = false;
+
+      const selected =
+        items[WHEEL_SELECTED_INDEX];
+
+      const doublePoints =
+        clean(
+          selected?.text || ""
+        ).includes(
+          "double points"
+        );
+
+      WHEEL_POINTS_MULTIPLIER =
+        doublePoints
+          ? 2
+          : 1;
+
+      if(result){
+
+        result.innerHTML = `
+          <div class="wheel-result-category">
+
+            ${
+              doublePoints
+                ? "✨"
+                : "🎯"
+            }
+
+            ${esc(
+              selected?.text ||
+              "Selected Challenge"
+            )}
+
+            ${
+              doublePoints
+                ? " — 2 Points"
+                : ""
+            }
+
+          </div>
+
+          <div class="wheel-result-question">
+
+            ${esc(
+              selected?.right ||
+              selected?.challenge ||
+              selected?.question ||
+              "Complete the selected challenge."
+            )}
+
+          </div>
+
+          ${
+            selected?.image
+              ? `
+                <img
+                  src="${esc(selected.image)}"
+                  alt="Wheel challenge">
+              `
+              : ""
+          }
+        `;
+
+        result.classList.remove(
+          "hidden"
+        );
+      }
+
+      correctButton?.classList.remove(
+        "hidden"
+      );
+
+      wrongButton?.classList.remove(
+        "hidden"
+      );
+
+      button.disabled = false;
+
+      button.innerHTML = `
+        <i class="fa-solid fa-rotate-right"></i>
+        Spin Again
+      `;
+
+      playWheelStopSound();
+
+    },4400);
+}
+
+function gradeWheelAnswer(isCorrect){
+
+  if(
+    ANSWER_LOCKED ||
+    ACTIVITY_FINISHED ||
+    WHEEL_IS_SPINNING ||
+    WHEEL_SELECTED_INDEX < 0
+  ){
+    return;
+  }
+
+  ANSWER_LOCKED = true;
+
+  const feedback =
+    document.getElementById(
+      "feedback"
+    );
+
+  feedback.className =
+    "feedback";
+
+  if(isCorrect){
+
+    CURRENT_SCORE +=
+      WHEEL_POINTS_MULTIPLIER;
+
+    feedback.textContent =
+      WHEEL_POINTS_MULTIPLIER === 2
+        ? "🎉 Correct! Double points awarded."
+        : "🎉 Correct wheel challenge!";
+
+    feedback.classList.add(
+      "good"
+    );
+
+    launchSmallConfetti();
+    playCorrectSound();
+
+  }else{
+
+    feedback.textContent =
+      "❌ The wheel challenge was marked incorrect.";
+
+    feedback.classList.add(
+      "bad"
+    );
+
+    playWrongSound();
+
+  }
+
+  recordCurrentTeamAnswer(
+    Boolean(isCorrect)
+  );
+
+  WHEEL_POINTS_MULTIPLIER = 1;
+
+  [
+    "wheelSpinBtn",
+    "wheelCorrectBtn",
+    "wheelWrongBtn"
+  ].forEach(id=>{
+
+    const button =
+      document.getElementById(id);
+
+    if(button){
+      button.disabled = true;
+    }
+
+  });
+
+  document
+    .getElementById("scorePill")
+    .textContent =
+      `⭐ ${CURRENT_SCORE}`;
+
+  stopActivityTimer();
+
+  showNextQuestionButton();
+}
+
+function playWheelSpinSound(){
+
+  try{
+
+    const audioContext =
+      getSharedAudioContext();
+
+    if(!audioContext){
+      return;
+    }
+
+    const startTime =
+      audioContext.currentTime;
+
+    for(let index = 0; index < 24; index++){
+
+      const oscillator =
+        audioContext.createOscillator();
+
+      const gain =
+        audioContext.createGain();
+
+      oscillator.type =
+        "square";
+
+      oscillator.frequency.value =
+        290 +
+        index * 14;
+
+      const tickStart =
+        startTime +
+        index * 0.075;
+
+      const tickEnd =
+        tickStart + 0.045;
+
+      gain.gain.setValueAtTime(
+        0.0001,
+        tickStart
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.035,
+        tickStart + 0.008
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        tickEnd
+      );
+
+      oscillator.connect(gain);
+
+      gain.connect(
+        audioContext.destination
+      );
+
+      oscillator.start(
+        tickStart
+      );
+
+      oscillator.stop(
+        tickEnd
+      );
+
+      oscillator.onended = ()=>{
+
+        oscillator.disconnect();
+        gain.disconnect();
+
+      };
+
+    }
+
+  }catch(error){
+
+    console.warn(
+      "Wheel spin sound could not play:",
+      error
+    );
+
+  }
+
+}
+
+function playWheelStopSound(){
+
+  playToneSequence([
+    {
+      frequency:523.25,
+      duration:0.12,
+      delay:0
+    },
+    {
+      frequency:659.25,
+      duration:0.12,
+      delay:0.12
+    },
+    {
+      frequency:880,
+      duration:0.25,
+      delay:0.24
+    }
+  ]);
+
+}
+
 
 function chooseAnswer(answerIndex,clickedButton){
   if(ANSWER_LOCKED || ACTIVITY_FINISHED){
@@ -4225,6 +4978,7 @@ async function finishActivity(
 
 function restartGame(){
   clearRandomQuestionTimers();
+  clearWheelState();
   if(!CURRENT_ACTIVITY){
     return;
   }
@@ -4280,6 +5034,7 @@ function restartGame(){
 
 async function backToActivities(){
   clearRandomQuestionTimers();
+  clearWheelState();
   stopActivityTimer();
 
   if(
