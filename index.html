@@ -2426,19 +2426,48 @@ function updateActivityTimerDisplay(){
 }
 
 async function finishActivityByTimeout(){
-  if(ACTIVITY_FINISHED){
-    return;
-  }
+
+  if(ACTIVITY_FINISHED) return;
 
   ANSWER_LOCKED = true;
+
   stopActivityTimer();
+
   ACTIVITY_TIME_LEFT = 0;
 
-  alert(
-    "Time is over. The activity will now finish."
-  );
+  // يعتبر السؤال الحالي خطأ
+  recordCurrentTeamAnswer(false);
 
-  await finishActivity(true);
+  document.getElementById("feedback").textContent =
+    "⏰ Time is over";
+
+  document.getElementById("feedback").className =
+    "feedback bad";
+
+  playWrongSound();
+
+  // نصف ثانية ثم السؤال التالي
+  setTimeout(()=>{
+
+    CURRENT_QUESTION_INDEX++;
+
+    if(
+      CURRENT_QUESTION_INDEX >=
+      CURRENT_ACTIVITY.questions.length
+    ){
+
+      finishActivity();
+
+    }else{
+
+      startActivityTimer();
+
+      renderStudentQuestion();
+
+    }
+
+  },700);
+
 }
 
 function renderStudentQuestion(){
@@ -2912,7 +2941,14 @@ function gradeRandomAnswer(isCorrect){
   document
     .getElementById("scorePill")
     .textContent = `⭐ ${CURRENT_SCORE}`;
+/*
+  إيقاف المؤقت بعد تسجيل الإجابة
+*/
+stopActivityTimer();
 
+/*
+  إظهار زر السؤال التالي
+*/
   showNextQuestionButton();
 }
 
@@ -3162,7 +3198,7 @@ function checkMatchAnswer(){
     .getElementById("scorePill")
     .textContent =
       `⭐ ${CURRENT_SCORE}`;
-
+stopActivityTimer();
   showNextQuestionButton();
 }
 
@@ -3381,7 +3417,7 @@ function checkOrderAnswer(){
     .getElementById("scorePill")
     .textContent =
       `⭐ ${CURRENT_SCORE}`;
-
+stopActivityTimer();
   showNextQuestionButton();
 }
 
@@ -3457,8 +3493,16 @@ function showNextQuestionButton(){
 }
 
 function nextQuestionManually(){
+
+  /*
+    إيقاف أي مؤقت خاص بالسؤال العشوائي
+  */
   clearRandomQuestionTimers();
 
+  /*
+    لا تسمح بالانتقال قبل الإجابة،
+    ولا تسمح بالانتقال بعد انتهاء النشاط
+  */
   if(
     !ANSWER_LOCKED ||
     ACTIVITY_FINISHED
@@ -3466,21 +3510,55 @@ function nextQuestionManually(){
     return;
   }
 
+  /*
+    إيقاف مؤقت السؤال الحالي
+    قبل الانتقال للسؤال التالي
+  */
+  stopActivityTimer();
+
+  /*
+    إخفاء زر Next بعد الضغط عليه
+  */
   document
     .getElementById("nextQuestionArea")
     .classList
     .add("hidden");
 
+  /*
+    الانتقال إلى رقم السؤال التالي
+  */
   CURRENT_QUESTION_INDEX++;
 
+  /*
+    التحقق هل يوجد سؤال آخر
+  */
   if(
     CURRENT_QUESTION_INDEX <
     CURRENT_ACTIVITY.questions.length
   ){
-    /* يبدأ المؤقت من كامل المدة مع كل سؤال جديد */
-    startActivityTimer();
+
+    /*
+      السماح بالإجابة على السؤال الجديد
+    */
+    ANSWER_LOCKED = false;
+
+    /*
+      عرض السؤال الجديد أولًا
+    */
     renderStudentQuestion();
+
+    /*
+      تشغيل المؤقت من البداية
+      للسؤال الجديد
+    */
+    startActivityTimer();
+
   }else{
+
+    /*
+      لا يوجد سؤال آخر،
+      لذلك يتم إنهاء النشاط وإظهار النتيجة
+    */
     finishActivity(false);
   }
 }
