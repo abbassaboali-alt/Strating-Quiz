@@ -3643,26 +3643,64 @@ function spinWheel(){
     "hidden"
   );
 
-  WHEEL_SELECTED_INDEX =
-    Math.floor(
-      Math.random() *
-      items.length
-    );
+WHEEL_SELECTED_INDEX =
+  Math.floor(
+    Math.random() *
+    items.length
+  );
 
-  const step =
-    360 / items.length;
+const step =
+  360 / items.length;
 
-  const centerAngle =
-    WHEEL_SELECTED_INDEX *
-    step +
-    step / 2;
+/*
+  زاوية منتصف القطاع المختار.
+*/
+const selectedCenterAngle =
+  WHEEL_SELECTED_INDEX *
+  step +
+  step / 2;
 
-  WHEEL_ROTATION +=
-    1440 +
-    (360 - centerAngle);
+/*
+  موضع دوران العجلة الحالي من 0 إلى 359.
+*/
+const currentRotation =
+  (
+    (
+      WHEEL_ROTATION % 360
+    ) +
+    360
+  ) % 360;
+
+/*
+  نريد أن يصل منتصف القطاع المختار إلى أعلى العجلة،
+  حيث يوجد السهم عند زاوية 0.
+*/
+const targetRotation =
+  (
+    360 -
+    selectedCenterAngle
+  ) % 360;
+
+/*
+  مقدار الحركة المطلوبة من الوضع الحالي
+  إلى الوضع الصحيح.
+*/
+const adjustment =
+  (
+    targetRotation -
+    currentRotation +
+    360
+  ) % 360;
+
+/*
+  أربع دورات كاملة ثم الوصول إلى القطاع المختار.
+*/
+WHEEL_ROTATION +=
+  1440 +
+  adjustment;
 
   disc.style.transition =
-    "transform 4.4s cubic-bezier(.12,.72,.12,1)";
+  "transform 4.4s cubic-bezier(.12,.72,.12,1)";
 
   requestAnimationFrame(()=>{
 
