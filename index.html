@@ -282,6 +282,49 @@ button{font-family:inherit;cursor:pointer}
   background:#f8fbfd;
 }
 
+
+.activity-filter-bar{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(220px,300px);
+  gap:12px;
+  align-items:end;
+  margin-bottom:16px;
+}
+
+.activity-filter-group label{
+  display:block;
+  margin-bottom:6px;
+  font-size:13px;
+  font-weight:900;
+  color:var(--blue);
+}
+
+.activity-type-select{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:15px;
+  padding:12px 14px;
+  background:#f8fbfd;
+  color:var(--text);
+  font-family:inherit;
+  font-size:14px;
+  font-weight:800;
+  outline:none;
+}
+
+.activity-filter-count{
+  margin:-4px 0 14px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+}
+
+@media(max-width:700px){
+  .activity-filter-bar{
+    grid-template-columns:1fr;
+  }
+}
+
 .activity-search-wrap i{
   color:var(--blue);
   font-size:18px;
@@ -1054,17 +1097,55 @@ button{font-family:inherit;cursor:pointer}
 
     <div class="panel">
 
-      <div class="activity-search-wrap">
-        <i class="fa-solid fa-magnifying-glass"></i>
+      <div class="activity-filter-bar">
 
-        <input
-          id="activitySearchInput"
-          class="activity-search-input"
-          type="search"
-          placeholder="Search by activity, course, trainer, branch, or section..."
-          autocomplete="off"
-          oninput="filterActivityCards()">
+        <div class="activity-filter-group">
+          <label for="activitySearchInput">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            Search Activities
+          </label>
+
+          <div class="activity-search-wrap" style="margin-bottom:0">
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <input
+              id="activitySearchInput"
+              class="activity-search-input"
+              type="search"
+              placeholder="Search by activity, course, trainer, branch, or section..."
+              autocomplete="off"
+              oninput="filterActivityCards()">
+          </div>
+        </div>
+
+        <div class="activity-filter-group">
+          <label for="activityTypeFilter">
+            <i class="fa-solid fa-gamepad"></i>
+            Activity Type
+          </label>
+
+          <select
+            id="activityTypeFilter"
+            class="activity-type-select"
+            onchange="filterActivityCards()">
+
+            <option value="">🎮 All Activities</option>
+            <option value="wheel">🎡 Wheel of Fortune</option>
+            <option value="random">🖼️ Random Image</option>
+            <option value="match">🔗 Matching</option>
+            <option value="order">🔀 Ordering</option>
+            <option value="mcq">✅ Multiple Choice</option>
+            <option value="text">✍️ Written Answer</option>
+            <option value="voice">🎤 Speaking</option>
+            <option value="audio">🔊 Audio</option>
+            <option value="video">🎥 Video</option>
+
+          </select>
+        </div>
+
       </div>
+
+      <div id="activityFilterCount" class="activity-filter-count"></div>
 
       <div id="openActivitiesBox" class="empty">
         Loading activities and open courses...
@@ -2098,14 +2179,29 @@ function filterActivityCards(){
       "activitySearchInput"
     );
 
+  const typeSelect =
+    document.getElementById(
+      "activityTypeFilter"
+    );
+
   const noResults =
     document.getElementById(
       "activitySearchNoResults"
     );
 
+  const countBox =
+    document.getElementById(
+      "activityFilterCount"
+    );
+
   const query =
     normalizeSearchText(
       input?.value || ""
+    );
+
+  const selectedType =
+    clean(
+      typeSelect?.value || ""
     );
 
   const cards = [
@@ -2115,7 +2211,13 @@ function filterActivityCards(){
   ];
 
   if(!cards.length){
+
     noResults?.classList.add("hidden");
+
+    if(countBox){
+      countBox.textContent = "";
+    }
+
     return;
   }
 
@@ -2130,9 +2232,25 @@ function filterActivityCards(){
         ""
       );
 
-    const matched =
+    const types =
+      String(
+        card.dataset.types || ""
+      )
+      .split(",")
+      .map(type=>clean(type))
+      .filter(Boolean);
+
+    const matchesSearch =
       !query ||
       searchable.includes(query);
+
+    const matchesType =
+      !selectedType ||
+      types.includes(selectedType);
+
+    const matched =
+      matchesSearch &&
+      matchesType;
 
     card.classList.toggle(
       "hidden",
@@ -2149,6 +2267,13 @@ function filterActivityCards(){
       "hidden",
       visibleCount > 0
     );
+  }
+
+  if(countBox){
+
+    countBox.textContent =
+      `Showing ${visibleCount} of ${cards.length} Activities`;
+
   }
 }
 
@@ -2250,6 +2375,7 @@ async function loadStudentActivities(){
       return `
         <article
           class="open-activity-card"
+          data-types="${esc(getActivityGameTypes(activity).join(","))}"
           data-search="${esc([
             activity.title || "",
             activity.description || "",
