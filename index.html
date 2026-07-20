@@ -500,29 +500,185 @@ button{font-family:inherit;cursor:pointer}
   margin-top:15px;
 }
 
-.match-game{display:grid;gap:12px}
+/* =====================================
+   MATCH: TEXT WITH TEXT OR IMAGE
+===================================== */
+
+.match-game{
+  display:grid;
+  gap:18px;
+  width:100%;
+}
+
+.match-image-instruction{
+  width:100%;
+  padding:12px 15px;
+  border:1px solid #cfe0ef;
+  border-radius:14px;
+  background:#eef6fd;
+  color:var(--blue);
+  text-align:center;
+  font-weight:900;
+  line-height:1.6;
+}
 
 .match-row{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  gap:12px;
-  align-items:center;
-  padding:12px;
+  display:block;
+  width:100%;
+  padding:16px;
   border:1px solid var(--border);
-  border-radius:15px;
+  border-radius:18px;
   background:#fbfdff;
 }
 
-.match-left{font-weight:900;color:var(--blue)}
-
-.match-row select{
+.match-left{
   width:100%;
-  border:1px solid var(--border);
-  border-radius:12px;
-  padding:11px;
+  margin-bottom:13px;
+  padding:12px 14px;
+  border-radius:13px;
+  background:linear-gradient(
+    135deg,
+    var(--blue),
+    var(--blue2)
+  );
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+  text-align:center;
+  overflow-wrap:anywhere;
+}
+
+.match-image-options{
+  display:grid;
+  grid-template-columns:repeat(
+    auto-fit,
+    minmax(150px,1fr)
+  );
+  gap:12px;
+  width:100%;
+}
+
+.match-image-option{
+  width:100%;
+  min-width:0;
+  min-height:130px;
+  padding:10px;
+  border:2px solid var(--border);
+  border-radius:16px;
   background:#fff;
+  color:var(--text);
   font-family:inherit;
-  font-weight:700;
+  font-size:15px;
+  font-weight:900;
+  line-height:1.5;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  transition:
+    transform .2s,
+    border-color .2s,
+    background .2s,
+    box-shadow .2s;
+  overflow:hidden;
+}
+
+.match-image-option:hover:not(:disabled){
+  transform:translateY(-3px);
+  border-color:var(--blue2);
+  box-shadow:0 8px 18px rgba(36,103,165,.13);
+}
+
+.match-image-option img{
+  display:block;
+  width:100%;
+  height:135px;
+  object-fit:contain;
+  border-radius:11px;
+  background:#f3f7fb;
+}
+
+.match-image-option span{
+  display:block;
+  width:100%;
+  text-align:center;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+
+.match-image-option.selected{
+  border-color:var(--blue2);
+  background:#eef6fd;
+  box-shadow:
+    0 0 0 3px rgba(36,103,165,.13);
+}
+
+.match-image-option.correct{
+  border-color:var(--green);
+  background:#eafaf4;
+  box-shadow:
+    0 0 0 3px rgba(23,166,115,.13);
+}
+
+.match-image-option.wrong{
+  border-color:var(--red);
+  background:#fff0ee;
+  box-shadow:
+    0 0 0 3px rgba(231,76,60,.12);
+}
+
+.match-image-option.correct-answer{
+  border-color:var(--green);
+  background:#eafaf4;
+  box-shadow:
+    0 0 0 4px rgba(23,166,115,.18);
+}
+
+.match-image-option:disabled{
+  cursor:default;
+  opacity:1;
+}
+
+@media(max-width:650px){
+
+  .match-row{
+    padding:12px;
+  }
+
+  .match-left{
+    padding:11px;
+    font-size:16px;
+  }
+
+  .match-image-options{
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+    gap:9px;
+  }
+
+  .match-image-option{
+    min-height:110px;
+    padding:8px;
+    font-size:13px;
+  }
+
+  .match-image-option img{
+    height:100px;
+  }
+
+}
+
+@media(max-width:420px){
+
+  .match-image-options{
+    grid-template-columns:1fr;
+  }
+
+  .match-image-option img{
+    height:140px;
+  }
+
 }
 
 .order-game{display:grid;gap:10px}
@@ -841,7 +997,9 @@ button{font-family:inherit;cursor:pointer}
 
 @media(max-width:750px){
   .topbar{align-items:flex-start;flex-direction:column}
-  .student-answers,.match-row{grid-template-columns:1fr}
+  .student-answers{
+  grid-template-columns:1fr;
+}
   .container{width:95%;margin-top:14px}
   .panel,.game-card{padding:16px;border-radius:18px}
   .game-question{font-size:21px}
@@ -5783,120 +5941,331 @@ function shuffleArray(array){
   return copy;
 }
 
+/* =====================================
+   MATCH QUESTION
+   TEXT → TEXT / IMAGE
+===================================== */
+
 function renderMatchQuestion(
   question,
   answersBox
 ){
+
   answersBox.className =
     "match-game";
 
   const pairs =
     (question.answers || [])
-      .map((item,index)=>({
-        id:index,
-        left:item.text || "",
-        right:
-          item.right ||
-          item.match ||
-          ""
-      }));
+      .map((item,index)=>{
+
+        const left =
+          String(
+            item?.text ||
+            ""
+          ).trim();
+
+        const right =
+          String(
+            item?.right ||
+            item?.match ||
+            ""
+          ).trim();
+
+        const image =
+          getItemImage(item);
+
+        return {
+          left,
+          right,
+          image,
+
+          matchId:
+            `match_${index}`
+        };
+
+      })
+      .filter(pair=>
+        pair.left &&
+        (
+          pair.right ||
+          pair.image
+        )
+      );
+
+  if(
+    pairs.length < 2
+  ){
+
+    answersBox.innerHTML = `
+      <div class="empty">
+        This matching question requires at least two valid pairs.
+      </div>
+    `;
+
+    return;
+
+  }
+
+  /*
+    ننشئ نسخة واحدة من خيارات الطرف المقابل،
+    ثم نخلط ترتيبها.
+  */
 
   const rightOptions =
     shuffleArray(
-      pairs.map(item=>item.right)
+      pairs.map(pair=>({
+        matchId:
+          pair.matchId,
+
+        text:
+          pair.right,
+
+        image:
+          pair.image
+      }))
     );
 
-  answersBox.innerHTML =
-    pairs.map(pair=>`
-      <div class="match-row">
+  answersBox.innerHTML = `
+    <div class="match-image-instruction">
+      Match each item with its correct word or image.
+    </div>
+
+    ${pairs.map(pair=>`
+      <div
+        class="match-row"
+        data-correct-id="${esc(pair.matchId)}">
 
         <div class="match-left">
           ${esc(pair.left)}
         </div>
 
-        <select
-          class="match-select"
-          data-correct="${esc(pair.right)}">
+        <div class="match-image-options">
 
-          <option value="">
-            Select a match...
-          </option>
+          ${rightOptions.map(option=>`
+            <button
+              class="match-image-option"
+              type="button"
+              data-match-id="${esc(option.matchId)}"
+              onclick="selectMatchImageOption(this)">
 
-          ${
-            rightOptions.map(option=>`
-              <option value="${esc(option)}">
-                ${esc(option)}
-              </option>
-            `).join("")
-          }
+              ${
+                option.image
+                  ? `
+                    <img
+                      src="${esc(option.image)}"
+                      alt="Matching option"
+                      loading="lazy">
+                  `
+                  : ""
+              }
 
-        </select>
+              ${
+                option.text
+                  ? `
+                    <span>
+                      ${esc(option.text)}
+                    </span>
+                  `
+                  : ""
+              }
+
+            </button>
+          `).join("")}
+
+        </div>
 
       </div>
-    `).join("") +
-    `
-      <div class="type-result-actions">
-        <button
-          class="btn btn-primary"
-          type="button"
-          onclick="checkMatchAnswer()">
+    `).join("")}
 
-          <i class="fa-solid fa-check"></i>
-          Check Matches
+    <div class="type-result-actions">
 
-        </button>
-      </div>
-    `;
+      <button
+        class="btn btn-primary"
+        type="button"
+        onclick="checkMatchAnswer()">
+
+        <i class="fa-solid fa-check"></i>
+        Check Matches
+
+      </button>
+
+    </div>
+  `;
+
 }
 
-function checkMatchAnswer(){
-  if(ANSWER_LOCKED || ACTIVITY_FINISHED){
+
+/* =====================================
+   SELECT MATCH OPTION
+===================================== */
+
+function selectMatchImageOption(
+  clickedButton
+){
+
+  if(
+    ANSWER_LOCKED ||
+    ACTIVITY_FINISHED
+  ){
     return;
   }
 
-  const selects = [
+  const currentRow =
+    clickedButton.closest(
+      ".match-row"
+    );
+
+  if(!currentRow){
+    return;
+  }
+
+  /*
+    كل صف يسمح باختيار خيار واحد فقط.
+  */
+
+  currentRow
+    .querySelectorAll(
+      ".match-image-option"
+    )
+    .forEach(button=>{
+
+      button.classList.remove(
+        "selected"
+      );
+
+    });
+
+  clickedButton.classList.add(
+    "selected"
+  );
+
+}
+
+
+/* =====================================
+   CHECK MATCH ANSWER
+===================================== */
+
+function checkMatchAnswer(){
+
+  if(
+    ANSWER_LOCKED ||
+    ACTIVITY_FINISHED
+  ){
+    return;
+  }
+
+  const rows = [
     ...document.querySelectorAll(
-      ".match-select"
+      ".match-row"
     )
   ];
 
-  if(
-    selects.some(
-      select=>!select.value
-    )
-  ){
+  if(!rows.length){
+    return;
+  }
+
+  /*
+    التأكد أن كل صف يحتوي على اختيار.
+  */
+
+  const incompleteRow =
+    rows.find(row=>
+      !row.querySelector(
+        ".match-image-option.selected"
+      )
+    );
+
+  if(incompleteRow){
+
     alert(
       "Complete all matching pairs first."
     );
 
     return;
+
   }
 
   ANSWER_LOCKED = true;
 
-  const allCorrect =
-    selects.every(
-      select=>
-        select.value ===
-        select.dataset.correct
-    );
+  let allCorrect = true;
 
-  selects.forEach(select=>{
-    select.disabled = true;
+  rows.forEach(row=>{
+
+    const correctId =
+      String(
+        row.dataset.correctId ||
+        ""
+      );
+
+    const selectedButton =
+      row.querySelector(
+        ".match-image-option.selected"
+      );
+
+    const selectedId =
+      String(
+        selectedButton
+          ?.dataset
+          ?.matchId ||
+        ""
+      );
 
     const isCorrect =
-      select.value ===
-      select.dataset.correct;
+      selectedId === correctId;
 
-    select.style.borderColor =
-      isCorrect
-        ? "var(--green)"
-        : "var(--red)";
+    if(!isCorrect){
+      allCorrect = false;
+    }
 
-    select.style.background =
-      isCorrect
-        ? "#eafaf4"
-        : "#fff0ee";
+    /*
+      تعطيل جميع خيارات الصف.
+    */
+
+    row
+      .querySelectorAll(
+        ".match-image-option"
+      )
+      .forEach(button=>{
+
+        button.disabled = true;
+
+        const buttonId =
+          String(
+            button.dataset.matchId ||
+            ""
+          );
+
+        if(
+          button === selectedButton
+        ){
+
+          button.classList.add(
+            isCorrect
+              ? "correct"
+              : "wrong"
+          );
+
+        }
+
+        /*
+          إذا كانت الإجابة خاطئة،
+          نظهر الخيار الصحيح في نفس الصف.
+        */
+
+        if(
+          !isCorrect &&
+          buttonId === correctId
+        ){
+
+          button.classList.add(
+            "correct-answer"
+          );
+
+        }
+
+      });
+
   });
 
   const feedback =
@@ -5904,38 +6273,55 @@ function checkMatchAnswer(){
       "feedback"
     );
 
-  feedback.className = "feedback";
+  feedback.className =
+    "feedback";
 
   if(allCorrect){
+
     CURRENT_SCORE++;
 
     feedback.textContent =
       "🎉 All matches are correct!";
 
-    feedback.classList.add("good");
+    feedback.classList.add(
+      "good"
+    );
 
     launchSmallConfetti();
     playCorrectSound();
 
   }else{
-    feedback.textContent =
-      "❌ Some matches are incorrect.";
 
-    feedback.classList.add("bad");
+    feedback.textContent =
+      "❌ Some matches are incorrect. The correct matches are highlighted.";
+
+    feedback.classList.add(
+      "bad"
+    );
 
     playWrongSound();
+
   }
+
+  /*
+    تسجيل نتيجة الفريق الحالي.
+  */
 
   recordCurrentTeamAnswer(
     allCorrect
   );
 
   document
-    .getElementById("scorePill")
+    .getElementById(
+      "scorePill"
+    )
     .textContent =
       `⭐ ${CURRENT_SCORE}`;
-stopActivityTimer();
+
+  stopActivityTimer();
+
   showNextQuestionButton();
+
 }
 
 function renderOrderQuestion(
