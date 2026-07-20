@@ -3720,14 +3720,43 @@ WHEEL_ROTATION +=
         ACTIVITY_FINISHED ||
         ANSWER_LOCKED
       ){
-        WHEEL_IS_SPINNING = false;
-        return;
-      }
+    WHEEL_IS_SPINNING = false;
 
-      WHEEL_IS_SPINNING = false;
+/*
+  حساب زاوية العجلة النهائية بعد توقفها.
+*/
+const finalRotation =
+  (
+    (
+      WHEEL_ROTATION % 360
+    ) +
+    360
+  ) % 360;
 
-      const selected =
-        items[WHEEL_SELECTED_INDEX];
+/*
+  تحديد الزاوية الأصلية الموجودة حاليًا تحت السهم.
+  السهم موجود أعلى العجلة عند زاوية صفر.
+*/
+const pointerOriginalAngle =
+  (
+    360 -
+    finalRotation
+  ) % 360;
+
+/*
+  استخراج رقم القطاع الموجود فعليًا تحت السهم.
+*/
+WHEEL_SELECTED_INDEX =
+  Math.floor(
+    pointerOriginalAngle /
+    step
+  ) % items.length;
+
+/*
+  هذا هو السؤال المطابق للقطاع الذي توقف عنده السهم.
+*/
+const selected =
+  items[WHEEL_SELECTED_INDEX];
 
       const doublePoints =
         clean(
@@ -5535,7 +5564,7 @@ window.addEventListener(
   event=>{
 
     const data =
-      event.data || {}; 
+      event.data || {};
 
     if(
       data.type !== "PRUDLE_AUTH"
