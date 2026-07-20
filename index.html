@@ -228,6 +228,12 @@ button{font-family:inherit;cursor:pointer}
   border-color:#d5a8eb;
 }
 
+.game-balloon{
+  color:#a61f55;
+  background:#ffe8f1;
+  border-color:#f2a5c2;
+}
+
 .game-match{
   color:#155a8a;
   background:#e7f4fd;
@@ -1048,6 +1054,166 @@ button{font-family:inherit;cursor:pointer}
   .wheel-pointer{font-size:40px}
 }
 
+
+/* =====================================
+   BALLOON POP QUESTION
+===================================== */
+.balloon-game{
+  width:100%;
+  text-align:center;
+}
+
+.balloon-stage{
+  position:relative;
+  min-height:420px;
+  overflow:hidden;
+  border:2px dashed #c7dbea;
+  border-radius:26px;
+  padding:28px 18px 34px;
+  background:
+    radial-gradient(circle at 15% 20%,rgba(255,255,255,.9),transparent 13%),
+    radial-gradient(circle at 80% 18%,rgba(255,255,255,.75),transparent 11%),
+    linear-gradient(180deg,#dff5ff 0%,#f8fdff 62%,#eaf8e5 100%);
+}
+
+.balloon-instruction{
+  position:relative;
+  z-index:3;
+  color:var(--blue);
+  font-weight:900;
+  margin-bottom:18px;
+}
+
+.balloon-main{
+  position:relative;
+  width:190px;
+  height:235px;
+  margin:25px auto 85px;
+  border:0;
+  background:transparent;
+  animation:balloonFloat 2.4s ease-in-out infinite;
+}
+
+.balloon-body{
+  position:absolute;
+  inset:0 0 35px;
+  display:grid;
+  place-items:center;
+  border-radius:50% 50% 46% 46%;
+  background:
+    radial-gradient(circle at 35% 25%,rgba(255,255,255,.82),transparent 15%),
+    linear-gradient(145deg,#ff7fa6,#e73f77);
+  box-shadow:
+    inset -15px -18px 24px rgba(120,0,45,.18),
+    0 18px 28px rgba(22,68,120,.18);
+  color:#fff;
+  font-size:58px;
+  transition:.22s;
+}
+
+.balloon-main:hover .balloon-body{
+  transform:scale(1.05);
+}
+
+.balloon-knot{
+  position:absolute;
+  left:50%;
+  bottom:24px;
+  transform:translateX(-50%);
+  width:0;
+  height:0;
+  border-left:12px solid transparent;
+  border-right:12px solid transparent;
+  border-top:19px solid #d93368;
+}
+
+.balloon-string{
+  position:absolute;
+  left:50%;
+  top:204px;
+  width:2px;
+  height:94px;
+  background:#74889b;
+  transform:translateX(-50%);
+}
+
+.balloon-main.popping{
+  animation:balloonPop .38s ease forwards;
+  pointer-events:none;
+}
+
+.balloon-question-card{
+  max-width:760px;
+  margin:0 auto;
+  padding:22px;
+  border:2px solid var(--gold);
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 16px 35px rgba(22,68,120,.16);
+  animation:balloonReveal .45s ease;
+}
+
+.balloon-question-text{
+  font-size:24px;
+  line-height:1.65;
+  font-weight:900;
+  color:var(--blue);
+  margin-bottom:18px;
+}
+
+.balloon-options{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:13px;
+}
+
+.balloon-option{
+  min-height:82px;
+}
+
+.balloon-burst{
+  position:absolute;
+  left:50%;
+  top:48%;
+  transform:translate(-50%,-50%);
+  font-size:92px;
+  z-index:6;
+  animation:balloonBurst .55s ease forwards;
+  pointer-events:none;
+}
+
+@keyframes balloonFloat{
+  0%,100%{transform:translateY(0) rotate(-2deg)}
+  50%{transform:translateY(-18px) rotate(2deg)}
+}
+
+@keyframes balloonPop{
+  0%{transform:scale(1)}
+  65%{transform:scale(1.24)}
+  100%{transform:scale(0);opacity:0}
+}
+
+@keyframes balloonBurst{
+  0%{transform:translate(-50%,-50%) scale(.35);opacity:0}
+  45%{opacity:1}
+  100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}
+}
+
+@keyframes balloonReveal{
+  from{opacity:0;transform:translateY(18px) scale(.97)}
+  to{opacity:1;transform:none}
+}
+
+@media(max-width:650px){
+  .balloon-stage{min-height:390px;padding:20px 12px 28px}
+  .balloon-main{width:155px;height:195px;margin-bottom:75px}
+  .balloon-body{inset:0 0 30px;font-size:48px}
+  .balloon-knot{bottom:20px}
+  .balloon-string{top:168px;height:82px}
+  .balloon-options{grid-template-columns:1fr}
+  .balloon-question-text{font-size:20px}
+}
+
 </style>
 </head>
 
@@ -1132,6 +1298,7 @@ button{font-family:inherit;cursor:pointer}
             <option value="">🎮 All Activities</option>
             <option value="wheel">🎡 Wheel of Fortune</option>
             <option value="random">🖼️ Random Image</option>
+            <option value="balloon">🎈 Balloon Pop</option>
             <option value="match">🔗 Matching</option>
             <option value="order">🔀 Ordering</option>
             <option value="mcq">✅ Multiple Choice</option>
@@ -2061,6 +2228,12 @@ function getGameTypeInfo(type){
       className:"game-random"
     },
 
+    balloon:{
+      label:"Balloon Pop",
+      icon:"fa-solid fa-burst",
+      className:"game-balloon"
+    },
+
     match:{
       label:"Matching",
       icon:"fa-solid fa-link",
@@ -2516,7 +2689,8 @@ function prepareTimerForCurrentQuestion(){
   */
   if(
     type === "random" ||
-    type === "wheel"
+    type === "wheel" ||
+    type === "balloon"
   ){
 
     if(type === "random"){
@@ -3431,6 +3605,20 @@ function renderStudentQuestion(){
       question,
       answersBox
     );
+    return;
+  }
+
+  if(type === "balloon"){
+    document
+      .getElementById("gameQuestion")
+      .textContent =
+        "🎈 Pop the balloon to reveal the question!";
+
+    renderBalloonQuestion(
+      question,
+      answersBox
+    );
+
     return;
   }
 
@@ -4489,6 +4677,348 @@ function playWheelStopSound(){
 
 }
 
+
+
+/* =====================================
+   BALLOON POP QUESTION PLAYER
+===================================== */
+
+function renderBalloonQuestion(
+  question,
+  answersBox
+){
+
+  answersBox.className =
+    "balloon-game";
+
+  answersBox.innerHTML = `
+    <div id="balloonStage" class="balloon-stage">
+
+      <div class="balloon-instruction">
+        Click the balloon to reveal the hidden question.
+      </div>
+
+      <button
+        id="mainQuestionBalloon"
+        class="balloon-main"
+        type="button"
+        onclick="popQuestionBalloon()"
+        aria-label="Pop the balloon">
+
+        <span class="balloon-body">🎈</span>
+        <span class="balloon-knot"></span>
+        <span class="balloon-string"></span>
+
+      </button>
+
+      <div
+        id="balloonQuestionCard"
+        class="balloon-question-card hidden">
+      </div>
+
+    </div>
+  `;
+
+}
+
+function playBalloonPopSound(){
+
+  try{
+
+    const context =
+      getSharedAudioContext
+        ? getSharedAudioContext()
+        : null;
+
+    if(!context){
+      return;
+    }
+
+    const now =
+      context.currentTime;
+
+    const oscillator =
+      context.createOscillator();
+
+    const gain =
+      context.createGain();
+
+    oscillator.type =
+      "sawtooth";
+
+    oscillator.frequency.setValueAtTime(
+      190,
+      now
+    );
+
+    oscillator.frequency.exponentialRampToValueAtTime(
+      55,
+      now + 0.16
+    );
+
+    gain.gain.setValueAtTime(
+      0.28,
+      now
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      now + 0.18
+    );
+
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+
+    oscillator.start(now);
+    oscillator.stop(now + 0.19);
+
+  }catch(error){
+
+    console.warn(
+      "Balloon sound could not play:",
+      error
+    );
+
+  }
+
+}
+
+function popQuestionBalloon(){
+
+  if(
+    ANSWER_LOCKED ||
+    ACTIVITY_FINISHED
+  ){
+    return;
+  }
+
+  const question =
+    CURRENT_ACTIVITY
+      ?.questions
+      ?.[CURRENT_QUESTION_INDEX];
+
+  if(!question){
+    return;
+  }
+
+  const balloon =
+    document.getElementById(
+      "mainQuestionBalloon"
+    );
+
+  const stage =
+    document.getElementById(
+      "balloonStage"
+    );
+
+  const card =
+    document.getElementById(
+      "balloonQuestionCard"
+    );
+
+  if(
+    !balloon ||
+    !stage ||
+    !card ||
+    balloon.dataset.popped === "1"
+  ){
+    return;
+  }
+
+  /*
+    يبدأ مؤقت السؤال عند فرقعة البالون،
+    وليس قبل أن يظهر السؤال.
+  */
+  startActivityTimer();
+
+  balloon.dataset.popped =
+    "1";
+
+  balloon.classList.add(
+    "popping"
+  );
+
+  const burst =
+    document.createElement(
+      "div"
+    );
+
+  burst.className =
+    "balloon-burst";
+
+  burst.textContent =
+    "💥";
+
+  stage.appendChild(
+    burst
+  );
+
+  playBalloonPopSound();
+
+  setTimeout(()=>{
+
+    balloon.classList.add(
+      "hidden"
+    );
+
+    burst.remove();
+
+    document
+      .getElementById(
+        "gameQuestion"
+      )
+      .textContent =
+        question.text ||
+        "Choose the correct answer.";
+
+    card.innerHTML = `
+      <div class="balloon-question-text">
+        ${esc(
+          question.text ||
+          "Choose the correct answer."
+        )}
+      </div>
+
+      <div class="balloon-options">
+
+        ${(question.answers || [])
+          .map((answer,index)=>`
+            <button
+              class="student-answer balloon-option"
+              type="button"
+              onclick="chooseBalloonAnswer(${index},this)">
+
+              ${
+                answer.image
+                  ? `<img src="${esc(answer.image)}" alt="">`
+                  : ""
+              }
+
+              <div>
+                ${esc(answer.text || "")}
+              </div>
+
+            </button>
+          `)
+          .join("")}
+
+      </div>
+    `;
+
+    card.classList.remove(
+      "hidden"
+    );
+
+  },330);
+
+}
+
+function chooseBalloonAnswer(
+  answerIndex,
+  clickedButton
+){
+
+  if(
+    ANSWER_LOCKED ||
+    ACTIVITY_FINISHED
+  ){
+    return;
+  }
+
+  const question =
+    CURRENT_ACTIVITY
+      .questions[
+        CURRENT_QUESTION_INDEX
+      ];
+
+  const selected =
+    question.answers[
+      answerIndex
+    ];
+
+  const buttons = [
+    ...document.querySelectorAll(
+      ".balloon-option"
+    )
+  ];
+
+  const feedback =
+    document.getElementById(
+      "feedback"
+    );
+
+  ANSWER_LOCKED =
+    true;
+
+  buttons.forEach(
+    (button,index)=>{
+
+      button.disabled =
+        true;
+
+      if(
+        question.answers[index]
+          ?.correct
+      ){
+
+        button.classList.add(
+          "correct"
+        );
+
+      }
+
+    }
+  );
+
+  if(selected?.correct){
+
+    CURRENT_SCORE++;
+
+    clickedButton.classList.add(
+      "correct"
+    );
+
+    feedback.textContent =
+      "🎉 Correct Answer! Excellent";
+
+    feedback.className =
+      "feedback good";
+
+    launchSmallConfetti();
+    playCorrectSound();
+
+  }else{
+
+    clickedButton.classList.add(
+      "wrong"
+    );
+
+    feedback.textContent =
+      "❌ Incorrect Answer — See the Correct Answer";
+
+    feedback.className =
+      "feedback bad";
+
+    playWrongSound();
+
+  }
+
+  recordCurrentTeamAnswer(
+    Boolean(selected?.correct)
+  );
+
+  document
+    .getElementById(
+      "scorePill"
+    )
+    .textContent =
+      `⭐ ${CURRENT_SCORE}`;
+
+  stopActivityTimer();
+
+  showNextQuestionButton();
+
+}
 
 function chooseAnswer(answerIndex,clickedButton){
   if(ANSWER_LOCKED || ACTIVITY_FINISHED){
