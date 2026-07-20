@@ -1854,6 +1854,17 @@ function clean(value){
     .replace(/\s+/g," ");
 }
 
+function getItemImage(item){
+
+  return String(
+    item?.image ||
+    item?.imageUrl ||
+    item?.url ||
+    ""
+  ).trim();
+
+}
+
 function first(object,fields,fallback=""){
   for(const field of fields){
     const value = object?.[field];
@@ -3923,8 +3934,8 @@ function renderStudentQuestion(){
 
       button.innerHTML = `
         ${
-          answer.image
-            ? `<img src="${esc(answer.image)}" alt="">`
+          getItemImage(answer)
+            ? `<img src="${esc(getItemImage(answer))}" alt="">`
             : ""
         }
 
@@ -3978,7 +3989,9 @@ function getRandomQuestionItems(){
 
   return Array.isArray(question?.answers)
     ? question.answers.filter(item=>
-        String(item?.image || "").trim()
+        Boolean(
+          getItemImage(item)
+        )
       )
     : [];
 }
@@ -3994,7 +4007,9 @@ function renderRandomImageQuestion(question,answersBox){
   const items =
     Array.isArray(question.answers)
       ? question.answers.filter(item=>
-          String(item?.image || "").trim()
+          Boolean(
+            getItemImage(item)
+          )
         )
       : [];
 
@@ -4063,7 +4078,7 @@ function showRandomItem(index){
 
   display.innerHTML = `
     <img
-      src="${esc(item.image || "")}"
+      src="${esc(getItemImage(item))}"
       alt="Random question image"
       onerror="this.style.display='none';this.nextElementSibling?.classList.remove('hidden')">
 
@@ -5174,8 +5189,8 @@ function popQuestionBalloon(){
               onclick="chooseBalloonAnswer(${index},this)">
 
               ${
-                answer.image
-                  ? `<img src="${esc(answer.image)}" alt="">`
+                getItemImage(answer)
+                  ? `<img src="${esc(getItemImage(answer))}" alt="">`
                   : ""
               }
 
@@ -5542,8 +5557,8 @@ function openMysteryBox(){
               onclick="chooseMysteryAnswer(${index},this)">
 
               ${
-                answer.image
-                  ? `<img src="${esc(answer.image)}" alt="">`
+                getItemImage(answer)
+                  ? `<img src="${esc(getItemImage(answer))}" alt="">`
                   : ""
               }
 
