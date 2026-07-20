@@ -184,6 +184,132 @@ button{font-family:inherit;cursor:pointer}
   font-weight:900;
 }
 
+
+.activity-card-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+
+.game-type-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+}
+
+.game-type-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  border:1px solid transparent;
+  white-space:nowrap;
+}
+
+.game-type-badge i{
+  font-size:14px;
+}
+
+.game-wheel{
+  color:#755300;
+  background:#fff4c7;
+  border-color:#f4cf58;
+}
+
+.game-random{
+  color:#6c3483;
+  background:#f4e8fb;
+  border-color:#d5a8eb;
+}
+
+.game-match{
+  color:#155a8a;
+  background:#e7f4fd;
+  border-color:#a9d7f4;
+}
+
+.game-order{
+  color:#9a4d00;
+  background:#fff0df;
+  border-color:#f5c18d;
+}
+
+.game-mcq{
+  color:#08744f;
+  background:#e5f8f0;
+  border-color:#9edcc4;
+}
+
+.game-text{
+  color:#7a3e00;
+  background:#fff4e7;
+  border-color:#eac293;
+}
+
+.game-voice{
+  color:#9b2445;
+  background:#fde9ef;
+  border-color:#efabc0;
+}
+
+.game-media{
+  color:#34495e;
+  background:#edf2f6;
+  border-color:#c6d2dc;
+}
+
+.game-default{
+  color:var(--blue);
+  background:#edf4fa;
+  border-color:#b9d0e4;
+}
+
+
+.activity-search-wrap{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:16px;
+  padding:10px 14px;
+  border:1px solid var(--border);
+  border-radius:15px;
+  background:#f8fbfd;
+}
+
+.activity-search-wrap i{
+  color:var(--blue);
+  font-size:18px;
+}
+
+.activity-search-input{
+  width:100%;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-family:inherit;
+  font-size:15px;
+  font-weight:700;
+  color:var(--text);
+}
+
+.activity-search-input::placeholder{
+  color:#8a9aaa;
+  font-weight:600;
+}
+
+.search-no-results{
+  text-align:center;
+  color:var(--muted);
+  padding:28px 10px;
+  font-weight:800;
+}
+
 .empty{text-align:center;color:var(--muted);padding:35px 10px}
 
 .play-shell{max-width:930px;margin:auto}
@@ -927,9 +1053,27 @@ button{font-family:inherit;cursor:pointer}
     </div>
 
     <div class="panel">
+
+      <div class="activity-search-wrap">
+        <i class="fa-solid fa-magnifying-glass"></i>
+
+        <input
+          id="activitySearchInput"
+          class="activity-search-input"
+          type="search"
+          placeholder="Search by activity, course, trainer, branch, or section..."
+          autocomplete="off"
+          oninput="filterActivityCards()">
+      </div>
+
       <div id="openActivitiesBox" class="empty">
         Loading activities and open courses...
       </div>
+
+      <div id="activitySearchNoResults" class="search-no-results hidden">
+        No activities match your search.
+      </div>
+
     </div>
   </section>
 
@@ -1816,6 +1960,198 @@ function findCourseForActivity(activity){
   return null;
 }
 
+
+
+function getGameTypeInfo(type){
+
+  const normalized =
+    clean(type || "mcq");
+
+  const types = {
+    wheel:{
+      label:"Wheel of Fortune",
+      icon:"fa-solid fa-dharmachakra",
+      className:"game-wheel"
+    },
+
+    random:{
+      label:"Random Image",
+      icon:"fa-solid fa-images",
+      className:"game-random"
+    },
+
+    match:{
+      label:"Matching",
+      icon:"fa-solid fa-link",
+      className:"game-match"
+    },
+
+    order:{
+      label:"Ordering",
+      icon:"fa-solid fa-arrow-down-short-wide",
+      className:"game-order"
+    },
+
+    mcq:{
+      label:"Multiple Choice",
+      icon:"fa-solid fa-circle-check",
+      className:"game-mcq"
+    },
+
+    text:{
+      label:"Written Answer",
+      icon:"fa-solid fa-pen",
+      className:"game-text"
+    },
+
+    voice:{
+      label:"Speaking",
+      icon:"fa-solid fa-microphone",
+      className:"game-voice"
+    },
+
+    audio:{
+      label:"Audio",
+      icon:"fa-solid fa-volume-high",
+      className:"game-media"
+    },
+
+    video:{
+      label:"Video",
+      icon:"fa-solid fa-film",
+      className:"game-media"
+    }
+  };
+
+  return types[normalized] || {
+    label:
+      normalized
+        ? normalized
+            .replaceAll("_"," ")
+            .replace(/\b\w/g,letter=>letter.toUpperCase())
+        : "Interactive Game",
+
+    icon:"fa-solid fa-gamepad",
+    className:"game-default"
+  };
+}
+
+function getActivityGameTypes(activity){
+
+  const questions =
+    Array.isArray(activity?.questions)
+      ? activity.questions
+      : [];
+
+  const uniqueTypes = [];
+
+  questions.forEach(question=>{
+
+    const type =
+      clean(question?.type || "mcq");
+
+    if(
+      type &&
+      !uniqueTypes.includes(type)
+    ){
+      uniqueTypes.push(type);
+    }
+  });
+
+  return uniqueTypes.length
+    ? uniqueTypes
+    : ["mcq"];
+}
+
+function renderActivityGameBadges(activity){
+
+  return getActivityGameTypes(activity)
+    .map(type=>{
+
+      const info =
+        getGameTypeInfo(type);
+
+      return `
+        <span class="
+          game-type-badge
+          ${info.className}
+        ">
+          <i class="${info.icon}"></i>
+          ${esc(info.label)}
+        </span>
+      `;
+    })
+    .join("");
+}
+
+function normalizeSearchText(value){
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g," ");
+}
+
+function filterActivityCards(){
+
+  const input =
+    document.getElementById(
+      "activitySearchInput"
+    );
+
+  const noResults =
+    document.getElementById(
+      "activitySearchNoResults"
+    );
+
+  const query =
+    normalizeSearchText(
+      input?.value || ""
+    );
+
+  const cards = [
+    ...document.querySelectorAll(
+      ".open-activity-card"
+    )
+  ];
+
+  if(!cards.length){
+    noResults?.classList.add("hidden");
+    return;
+  }
+
+  let visibleCount = 0;
+
+  cards.forEach(card=>{
+
+    const searchable =
+      normalizeSearchText(
+        card.dataset.search ||
+        card.textContent ||
+        ""
+      );
+
+    const matched =
+      !query ||
+      searchable.includes(query);
+
+    card.classList.toggle(
+      "hidden",
+      !matched
+    );
+
+    if(matched){
+      visibleCount++;
+    }
+  });
+
+  if(noResults){
+    noResults.classList.toggle(
+      "hidden",
+      visibleCount > 0
+    );
+  }
+}
+
 async function loadStudentActivities(){
   const box =
     document.getElementById("openActivitiesBox");
@@ -1912,11 +2248,35 @@ async function loadStudentActivities(){
           : "Open Time";
 
       return `
-        <article class="open-activity-card">
+        <article
+          class="open-activity-card"
+          data-search="${esc([
+            activity.title || "",
+            activity.description || "",
+            getCourseName(course),
+            course ? getTrainer(course,activity) : "",
+            course ? getBranch(course,activity) : "",
+            course ? getSection(course,activity) : "",
+            course ? getPeriod(course,activity) : "",
+            sourceCourse
+              ? getTrainer(sourceCourse,activity)
+              : (activity.trainerName || ""),
+            getActivityGameTypes(activity)
+              .map(type=>getGameTypeInfo(type).label)
+              .join(" ")
+          ].join(" ").toLowerCase())}">
 
-          <div class="open-badge">
-            <i class="fa-solid fa-circle-play"></i>
-            Open
+          <div class="activity-card-head">
+
+            <div class="game-type-list">
+              ${renderActivityGameBadges(activity)}
+            </div>
+
+            <div class="open-badge">
+              <i class="fa-solid fa-circle-play"></i>
+              Open
+            </div>
+
           </div>
 
           <h3>${esc(activity.title || "Interactive Activity")}</h3>
@@ -1984,6 +2344,8 @@ async function loadStudentActivities(){
         </article>
       `;
     }).join("");
+
+    filterActivityCards();
 
   }catch(error){
     console.error(error);
