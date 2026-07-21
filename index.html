@@ -1929,6 +1929,18 @@ button{font-family:inherit;cursor:pointer}
 
 }
 
+
+/* Keep selected balloon/box position empty without rearranging the grid */
+.group-choice-placeholder{
+  visibility:hidden;
+  pointer-events:none;
+}
+
+.balloon-choice-grid,
+.mystery-choice-grid{
+  grid-auto-flow:row;
+}
+
 </style>
 </head>
 
@@ -5435,35 +5447,80 @@ function playWheelStopSound(){
    BALLOON POP QUESTION PLAYER
 ===================================== */
 
-function getRemainingQuestionIndexesByType(type){
-
-  const indexes = [];
+function ensureGroupedChoiceSlots(type){
 
   if(
     !CURRENT_ACTIVITY ||
     !Array.isArray(CURRENT_ACTIVITY.questions)
   ){
-    return indexes;
+    return [];
   }
 
-  for(
-    let index = CURRENT_QUESTION_INDEX;
-    index < CURRENT_ACTIVITY.questions.length;
-    index++
-  ){
+  const normalizedType =
+    String(type || "")
+      .trim()
+      .toLowerCase();
+
+  const matchingQuestions =
+    CURRENT_ACTIVITY.questions
+      .map((question,index)=>({
+        question,
+        index
+      }))
+      .filter(item=>
+        String(
+          item.question?.type ||
+          ""
+        )
+        .trim()
+        .toLowerCase() ===
+        normalizedType
+      );
+
+  matchingQuestions.forEach((item,slotIndex)=>{
 
     if(
-      String(
-        CURRENT_ACTIVITY.questions[index]?.type ||
-        ""
-      ).toLowerCase() === type
+      !Number.isInteger(
+        item.question._groupChoiceSlot
+      )
     ){
-      indexes.push(index);
+      item.question._groupChoiceSlot =
+        slotIndex;
     }
 
-  }
+  });
 
-  return indexes;
+  return matchingQuestions
+    .sort((a,b)=>
+      a.question._groupChoiceSlot -
+      b.question._groupChoiceSlot
+    );
+
+}
+
+function getGroupedChoiceItems(type){
+
+  return ensureGroupedChoiceSlots(type)
+    .map(item=>({
+
+      question:
+        item.question,
+
+      questionIndex:
+        CURRENT_ACTIVITY.questions.indexOf(
+          item.question
+        ),
+
+      slot:
+        item.question._groupChoiceSlot,
+
+      completed:
+        CURRENT_ACTIVITY.questions.indexOf(
+          item.question
+        ) <
+        CURRENT_QUESTION_INDEX
+
+    }));
 
 }
 
@@ -5493,8 +5550,8 @@ function moveSelectedQuestionToCurrent(selectedIndex){
 
 function renderBalloonQuestion(question,answersBox){
 
-  const balloonIndexes =
-    getRemainingQuestionIndexesByType(
+  const balloonItems =
+    getGroupedChoiceItems(
       "balloon"
     );
 
@@ -5510,26 +5567,43 @@ function renderBalloonQuestion(question,answersBox){
 
       <div class="balloon-choice-grid">
 
-        ${balloonIndexes
-          .map((questionIndex,displayIndex)=>`
-            <button
-              id="questionBalloon_${questionIndex}"
-              class="balloon-choice"
-              type="button"
-              onclick="popQuestionBalloon(${questionIndex},this)"
-              aria-label="Pop balloon ${displayIndex + 1}">
+        ${balloonItems
+          .map(item=>{
 
-              <span class="balloon-choice-body">
-                <span class="balloon-choice-number">
-                  ${displayIndex + 1}
+            if(
+              item.completed ||
+              item.questionIndex <
+              CURRENT_QUESTION_INDEX
+            ){
+              return `
+                <div
+                  class="balloon-choice group-choice-placeholder"
+                  aria-hidden="true">
+                </div>
+              `;
+            }
+
+            return `
+              <button
+                id="questionBalloon_${item.slot}"
+                class="balloon-choice"
+                type="button"
+                onclick="popQuestionBalloon(${item.questionIndex},this)"
+                aria-label="Pop balloon ${item.slot + 1}">
+
+                <span class="balloon-choice-body">
+                  <span class="balloon-choice-number">
+                    ${item.slot + 1}
+                  </span>
                 </span>
-              </span>
 
-              <span class="balloon-choice-knot"></span>
-              <span class="balloon-choice-string"></span>
+                <span class="balloon-choice-knot"></span>
+                <span class="balloon-choice-string"></span>
 
-            </button>
-          `)
+              </button>
+            `;
+
+          })
           .join("")}
 
       </div>
@@ -5678,14 +5752,6 @@ function popQuestionBalloon(
       balloon.disabled =
         true;
 
-      if(
-        balloon !==
-        clickedBalloon
-      ){
-        balloon.classList.add(
-          "balloon-choice-unselected"
-        );
-      }
 
     });
 
@@ -5898,8 +5964,8 @@ function renderMysteryQuestion(
   answersBox
 ){
 
-  const mysteryIndexes =
-    getRemainingQuestionIndexesByType(
+  const mysteryItems =
+    getGroupedChoiceItems(
       "mystery"
     );
 
@@ -5915,26 +5981,43 @@ function renderMysteryQuestion(
 
       <div class="mystery-choice-grid">
 
-        ${mysteryIndexes
-          .map((questionIndex,displayIndex)=>`
-            <button
-              id="mysteryBox_${questionIndex}"
-              class="mystery-choice"
-              type="button"
-              onclick="openMysteryBox(${questionIndex},this)"
-              aria-label="Open mystery box ${displayIndex + 1}">
+        ${mysteryItems
+          .map(item=>{
 
-              <span class="mystery-choice-bow">🎀</span>
-              <span class="mystery-choice-lid"></span>
-              <span class="mystery-choice-body"></span>
-              <span class="mystery-choice-ribbon-v"></span>
-              <span class="mystery-choice-ribbon-h"></span>
-              <span class="mystery-choice-number">
-                ${displayIndex + 1}
-              </span>
+            if(
+              item.completed ||
+              item.questionIndex <
+              CURRENT_QUESTION_INDEX
+            ){
+              return `
+                <div
+                  class="mystery-choice group-choice-placeholder"
+                  aria-hidden="true">
+                </div>
+              `;
+            }
 
-            </button>
-          `)
+            return `
+              <button
+                id="mysteryBox_${item.slot}"
+                class="mystery-choice"
+                type="button"
+                onclick="openMysteryBox(${item.questionIndex},this)"
+                aria-label="Open mystery box ${item.slot + 1}">
+
+                <span class="mystery-choice-bow">🎀</span>
+                <span class="mystery-choice-lid"></span>
+                <span class="mystery-choice-body"></span>
+                <span class="mystery-choice-ribbon-v"></span>
+                <span class="mystery-choice-ribbon-h"></span>
+                <span class="mystery-choice-number">
+                  ${item.slot + 1}
+                </span>
+
+              </button>
+            `;
+
+          })
           .join("")}
 
       </div>
@@ -6089,13 +6172,6 @@ function openMysteryBox(
       box.disabled =
         true;
 
-      if(
-        box !== clickedBox
-      ){
-        box.classList.add(
-          "mystery-choice-unselected"
-        );
-      }
 
     });
 
