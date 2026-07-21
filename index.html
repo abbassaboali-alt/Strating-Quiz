@@ -1635,6 +1635,300 @@ button{font-family:inherit;cursor:pointer}
   .mystery-question-text{font-size:20px}
 }
 
+
+
+/* =====================================
+   BALLOON AND MYSTERY GROUP SELECTION
+===================================== */
+
+.balloon-choice-grid,
+.mystery-choice-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+  gap:24px 16px;
+  width:min(900px,100%);
+  margin:22px auto 38px;
+  align-items:end;
+}
+
+.balloon-choice{
+  position:relative;
+  width:145px;
+  height:205px;
+  margin:auto;
+  border:0;
+  background:transparent;
+  animation:balloonFloat 2.4s ease-in-out infinite;
+  transition:opacity .25s,filter .25s,transform .25s;
+}
+
+.balloon-choice:nth-child(2n){
+  animation-delay:.25s;
+}
+
+.balloon-choice:nth-child(3n){
+  animation-delay:.5s;
+}
+
+.balloon-choice-body{
+  position:absolute;
+  inset:0 0 34px;
+  display:grid;
+  place-items:center;
+  border-radius:50% 50% 46% 46%;
+  background:
+    radial-gradient(circle at 35% 25%,rgba(255,255,255,.82),transparent 15%),
+    linear-gradient(145deg,#ff7fa6,#e73f77);
+  box-shadow:
+    inset -12px -15px 21px rgba(120,0,45,.18),
+    0 15px 25px rgba(22,68,120,.18);
+  transition:.2s;
+}
+
+.balloon-choice:nth-child(4n + 2) .balloon-choice-body{
+  background:
+    radial-gradient(circle at 35% 25%,rgba(255,255,255,.82),transparent 15%),
+    linear-gradient(145deg,#68c8ff,#2479c7);
+}
+
+.balloon-choice:nth-child(4n + 3) .balloon-choice-body{
+  background:
+    radial-gradient(circle at 35% 25%,rgba(255,255,255,.82),transparent 15%),
+    linear-gradient(145deg,#ffd66e,#f39c12);
+}
+
+.balloon-choice:nth-child(4n) .balloon-choice-body{
+  background:
+    radial-gradient(circle at 35% 25%,rgba(255,255,255,.82),transparent 15%),
+    linear-gradient(145deg,#86dfad,#17a673);
+}
+
+.balloon-choice:hover:not(:disabled) .balloon-choice-body{
+  transform:scale(1.07);
+}
+
+.balloon-choice-number{
+  width:48px;
+  height:48px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:rgba(255,255,255,.94);
+  color:var(--blue);
+  font-size:23px;
+  font-weight:900;
+  box-shadow:0 5px 12px rgba(0,0,0,.15);
+}
+
+.balloon-choice-knot{
+  position:absolute;
+  left:50%;
+  bottom:22px;
+  transform:translateX(-50%);
+  width:0;
+  height:0;
+  border-left:10px solid transparent;
+  border-right:10px solid transparent;
+  border-top:17px solid #d93368;
+}
+
+.balloon-choice-string{
+  position:absolute;
+  left:50%;
+  top:171px;
+  width:2px;
+  height:62px;
+  background:#74889b;
+  transform:translateX(-50%);
+}
+
+.balloon-choice-unselected{
+  opacity:.3;
+  filter:grayscale(.8);
+}
+
+.balloon-choice.popping{
+  animation:balloonPop .38s ease forwards;
+  pointer-events:none;
+}
+
+.mystery-choice{
+  position:relative;
+  width:170px;
+  height:165px;
+  margin:auto;
+  border:none;
+  background:transparent;
+  animation:mysteryFloat 2.4s ease-in-out infinite;
+  transition:opacity .25s,filter .25s,transform .25s;
+}
+
+.mystery-choice:nth-child(2n){
+  animation-delay:.25s;
+}
+
+.mystery-choice:nth-child(3n){
+  animation-delay:.5s;
+}
+
+.mystery-choice:hover:not(:disabled){
+  transform:scale(1.05);
+}
+
+.mystery-choice-body{
+  position:absolute;
+  left:18px;
+  right:18px;
+  bottom:0;
+  height:106px;
+  border-radius:15px 15px 19px 19px;
+  background:
+    linear-gradient(90deg,transparent 0 42%,#ffd65c 42% 58%,transparent 58% 100%),
+    linear-gradient(145deg,#8f57d6,#5f2e9d);
+  box-shadow:
+    inset -10px -12px 18px rgba(55,18,95,.22),
+    0 16px 28px rgba(22,68,120,.18);
+}
+
+.mystery-choice:nth-child(4n + 2) .mystery-choice-body,
+.mystery-choice:nth-child(4n + 2) .mystery-choice-lid{
+  background:
+    linear-gradient(90deg,transparent 0 42%,#ffd65c 42% 58%,transparent 58% 100%),
+    linear-gradient(145deg,#ef6a8a,#c83262);
+}
+
+.mystery-choice:nth-child(4n + 3) .mystery-choice-body,
+.mystery-choice:nth-child(4n + 3) .mystery-choice-lid{
+  background:
+    linear-gradient(90deg,transparent 0 42%,#ffd65c 42% 58%,transparent 58% 100%),
+    linear-gradient(145deg,#39b9d5,#197caa);
+}
+
+.mystery-choice:nth-child(4n) .mystery-choice-body,
+.mystery-choice:nth-child(4n) .mystery-choice-lid{
+  background:
+    linear-gradient(90deg,transparent 0 42%,#ffd65c 42% 58%,transparent 58% 100%),
+    linear-gradient(145deg,#55c98b,#148658);
+}
+
+.mystery-choice-lid{
+  position:absolute;
+  left:6px;
+  right:6px;
+  top:31px;
+  height:49px;
+  border-radius:15px;
+  background:
+    linear-gradient(90deg,transparent 0 42%,#ffd65c 42% 58%,transparent 58% 100%),
+    linear-gradient(145deg,#a96cf0,#6f38b6);
+  box-shadow:0 8px 15px rgba(50,20,90,.18);
+  transform-origin:50% 100%;
+  transition:.55s cubic-bezier(.2,.8,.2,1);
+  z-index:4;
+}
+
+.mystery-choice-ribbon-v{
+  position:absolute;
+  left:50%;
+  top:27px;
+  width:25px;
+  height:132px;
+  transform:translateX(-50%);
+  background:#ffd65c;
+  z-index:5;
+  border-radius:8px;
+  pointer-events:none;
+}
+
+.mystery-choice-ribbon-h{
+  position:absolute;
+  left:12px;
+  right:12px;
+  top:66px;
+  height:22px;
+  background:#ffd65c;
+  z-index:5;
+  border-radius:8px;
+  pointer-events:none;
+}
+
+.mystery-choice-bow{
+  position:absolute;
+  left:50%;
+  top:-5px;
+  transform:translateX(-50%);
+  font-size:43px;
+  z-index:6;
+  filter:drop-shadow(0 5px 5px rgba(0,0,0,.18));
+}
+
+.mystery-choice-number{
+  position:absolute;
+  left:50%;
+  bottom:27px;
+  transform:translateX(-50%);
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#fff;
+  color:var(--blue);
+  font-size:20px;
+  font-weight:900;
+  z-index:7;
+  box-shadow:0 4px 10px rgba(0,0,0,.18);
+}
+
+.mystery-choice.shaking{
+  animation:mysteryShake .55s ease;
+}
+
+.mystery-choice.opened{
+  animation:none;
+  pointer-events:none;
+}
+
+.mystery-choice.opened .mystery-choice-lid{
+  transform:translateY(-34px) rotate(-18deg);
+}
+
+.mystery-choice.opened .mystery-choice-ribbon-v,
+.mystery-choice.opened .mystery-choice-ribbon-h{
+  opacity:0;
+  transition:.25s;
+}
+
+.mystery-choice-unselected{
+  opacity:.3;
+  filter:grayscale(.8);
+}
+
+@media(max-width:650px){
+
+  .balloon-choice-grid,
+  .mystery-choice-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:20px 8px;
+  }
+
+  .balloon-choice{
+    width:120px;
+    height:178px;
+  }
+
+  .balloon-choice-string{
+    top:144px;
+    height:55px;
+  }
+
+  .mystery-choice{
+    width:145px;
+    height:145px;
+  }
+
+}
+
 </style>
 </head>
 
@@ -5141,10 +5435,68 @@ function playWheelStopSound(){
    BALLOON POP QUESTION PLAYER
 ===================================== */
 
-function renderBalloonQuestion(
-  question,
-  answersBox
-){
+function getRemainingQuestionIndexesByType(type){
+
+  const indexes = [];
+
+  if(
+    !CURRENT_ACTIVITY ||
+    !Array.isArray(CURRENT_ACTIVITY.questions)
+  ){
+    return indexes;
+  }
+
+  for(
+    let index = CURRENT_QUESTION_INDEX;
+    index < CURRENT_ACTIVITY.questions.length;
+    index++
+  ){
+
+    if(
+      String(
+        CURRENT_ACTIVITY.questions[index]?.type ||
+        ""
+      ).toLowerCase() === type
+    ){
+      indexes.push(index);
+    }
+
+  }
+
+  return indexes;
+
+}
+
+function moveSelectedQuestionToCurrent(selectedIndex){
+
+  if(
+    !CURRENT_ACTIVITY ||
+    !Array.isArray(CURRENT_ACTIVITY.questions) ||
+    selectedIndex === CURRENT_QUESTION_INDEX
+  ){
+    return;
+  }
+
+  const questions =
+    CURRENT_ACTIVITY.questions;
+
+  const selectedQuestion =
+    questions[selectedIndex];
+
+  questions[selectedIndex] =
+    questions[CURRENT_QUESTION_INDEX];
+
+  questions[CURRENT_QUESTION_INDEX] =
+    selectedQuestion;
+
+}
+
+function renderBalloonQuestion(question,answersBox){
+
+  const balloonIndexes =
+    getRemainingQuestionIndexesByType(
+      "balloon"
+    );
 
   answersBox.className =
     "balloon-game";
@@ -5153,21 +5505,34 @@ function renderBalloonQuestion(
     <div id="balloonStage" class="balloon-stage">
 
       <div class="balloon-instruction">
-        Click the balloon to reveal the hidden question.
+        Choose and pop one balloon. Each balloon contains a different question.
       </div>
 
-      <button
-        id="mainQuestionBalloon"
-        class="balloon-main"
-        type="button"
-        onclick="popQuestionBalloon()"
-        aria-label="Pop the balloon">
+      <div class="balloon-choice-grid">
 
-        <span class="balloon-body">🎈</span>
-        <span class="balloon-knot"></span>
-        <span class="balloon-string"></span>
+        ${balloonIndexes
+          .map((questionIndex,displayIndex)=>`
+            <button
+              id="questionBalloon_${questionIndex}"
+              class="balloon-choice"
+              type="button"
+              onclick="popQuestionBalloon(${questionIndex},this)"
+              aria-label="Pop balloon ${displayIndex + 1}">
 
-      </button>
+              <span class="balloon-choice-body">
+                <span class="balloon-choice-number">
+                  ${displayIndex + 1}
+                </span>
+              </span>
+
+              <span class="balloon-choice-knot"></span>
+              <span class="balloon-choice-string"></span>
+
+            </button>
+          `)
+          .join("")}
+
+      </div>
 
       <div
         id="balloonQuestionCard"
@@ -5183,14 +5548,16 @@ function playBalloonPopSound(){
 
   try{
 
-    const context =
-      getSharedAudioContext
-        ? getSharedAudioContext()
-        : null;
+    const AudioContextClass =
+      window.AudioContext ||
+      window.webkitAudioContext;
 
-    if(!context){
+    if(!AudioContextClass){
       return;
     }
+
+    const context =
+      new AudioContextClass();
 
     const now =
       context.currentTime;
@@ -5241,7 +5608,10 @@ function playBalloonPopSound(){
 
 }
 
-function popQuestionBalloon(){
+function popQuestionBalloon(
+  selectedQuestionIndex,
+  clickedBalloon
+){
 
   if(
     ANSWER_LOCKED ||
@@ -5250,19 +5620,22 @@ function popQuestionBalloon(){
     return;
   }
 
-  const question =
-    CURRENT_ACTIVITY
-      ?.questions
-      ?.[CURRENT_QUESTION_INDEX];
+  const selectedIndex =
+    Number(
+      selectedQuestionIndex
+    );
 
-  if(!question){
+  if(
+    !Number.isInteger(selectedIndex) ||
+    selectedIndex < CURRENT_QUESTION_INDEX ||
+    !CURRENT_ACTIVITY?.questions?.[selectedIndex] ||
+    String(
+      CURRENT_ACTIVITY.questions[selectedIndex]?.type ||
+      ""
+    ).toLowerCase() !== "balloon"
+  ){
     return;
   }
-
-  const balloon =
-    document.getElementById(
-      "mainQuestionBalloon"
-    );
 
   const stage =
     document.getElementById(
@@ -5275,24 +5648,48 @@ function popQuestionBalloon(){
     );
 
   if(
-    !balloon ||
+    !clickedBalloon ||
     !stage ||
     !card ||
-    balloon.dataset.popped === "1"
+    clickedBalloon.dataset.popped === "1"
   ){
     return;
   }
 
-  /*
-    يبدأ مؤقت السؤال عند فرقعة البالون،
-    وليس قبل أن يظهر السؤال.
-  */
-  startActivityTimer();
+  moveSelectedQuestionToCurrent(
+    selectedIndex
+  );
 
-  balloon.dataset.popped =
+  const question =
+    CURRENT_ACTIVITY
+      .questions[
+        CURRENT_QUESTION_INDEX
+      ];
+
+  clickedBalloon.dataset.popped =
     "1";
 
-  balloon.classList.add(
+  document
+    .querySelectorAll(
+      ".balloon-choice"
+    )
+    .forEach(balloon=>{
+
+      balloon.disabled =
+        true;
+
+      if(
+        balloon !==
+        clickedBalloon
+      ){
+        balloon.classList.add(
+          "balloon-choice-unselected"
+        );
+      }
+
+    });
+
+  clickedBalloon.classList.add(
     "popping"
   );
 
@@ -5307,6 +5704,28 @@ function popQuestionBalloon(){
   burst.textContent =
     "💥";
 
+  const balloonRect =
+    clickedBalloon.getBoundingClientRect();
+
+  const stageRect =
+    stage.getBoundingClientRect();
+
+  burst.style.left =
+    (
+      balloonRect.left -
+      stageRect.left +
+      balloonRect.width / 2
+    ) +
+    "px";
+
+  burst.style.top =
+    (
+      balloonRect.top -
+      stageRect.top +
+      balloonRect.height / 2
+    ) +
+    "px";
+
   stage.appendChild(
     burst
   );
@@ -5315,7 +5734,7 @@ function popQuestionBalloon(){
 
   setTimeout(()=>{
 
-    balloon.classList.add(
+    clickedBalloon.classList.add(
       "hidden"
     );
 
@@ -5347,8 +5766,8 @@ function popQuestionBalloon(){
               onclick="chooseBalloonAnswer(${index},this)">
 
               ${
-                getItemImage(answer)
-                  ? `<img src="${esc(getItemImage(answer))}" alt="">`
+                answer.image
+                  ? `<img src="${esc(answer.image)}" alt="">`
                   : ""
               }
 
@@ -5376,10 +5795,7 @@ function chooseBalloonAnswer(
   clickedButton
 ){
 
-  if(
-    ANSWER_LOCKED ||
-    ACTIVITY_FINISHED
-  ){
+  if(ANSWER_LOCKED){
     return;
   }
 
@@ -5461,18 +5877,12 @@ function chooseBalloonAnswer(
 
   }
 
-  recordCurrentTeamAnswer(
-    Boolean(selected?.correct)
-  );
-
   document
     .getElementById(
       "scorePill"
     )
     .textContent =
       `⭐ ${CURRENT_SCORE}`;
-
-  stopActivityTimer();
 
   showNextQuestionButton();
 
@@ -5488,6 +5898,11 @@ function renderMysteryQuestion(
   answersBox
 ){
 
+  const mysteryIndexes =
+    getRemainingQuestionIndexesByType(
+      "mystery"
+    );
+
   answersBox.className =
     "mystery-game";
 
@@ -5495,24 +5910,34 @@ function renderMysteryQuestion(
     <div id="mysteryStage" class="mystery-stage">
 
       <div class="mystery-instruction">
-        Click the mystery box to reveal the hidden question.
+        Choose and open one mystery box. Each box contains a different question.
       </div>
 
-      <button
-        id="mainMysteryBox"
-        class="mystery-box-button"
-        type="button"
-        onclick="openMysteryBox()"
-        aria-label="Open the mystery box">
+      <div class="mystery-choice-grid">
 
-        <span class="mystery-box-bow">🎀</span>
-        <span class="mystery-box-lid"></span>
-        <span class="mystery-box-body"></span>
-        <span class="mystery-box-ribbon-v"></span>
-        <span class="mystery-box-ribbon-h"></span>
-        <span class="mystery-box-mark">?</span>
+        ${mysteryIndexes
+          .map((questionIndex,displayIndex)=>`
+            <button
+              id="mysteryBox_${questionIndex}"
+              class="mystery-choice"
+              type="button"
+              onclick="openMysteryBox(${questionIndex},this)"
+              aria-label="Open mystery box ${displayIndex + 1}">
 
-      </button>
+              <span class="mystery-choice-bow">🎀</span>
+              <span class="mystery-choice-lid"></span>
+              <span class="mystery-choice-body"></span>
+              <span class="mystery-choice-ribbon-v"></span>
+              <span class="mystery-choice-ribbon-h"></span>
+              <span class="mystery-choice-number">
+                ${displayIndex + 1}
+              </span>
+
+            </button>
+          `)
+          .join("")}
+
+      </div>
 
       <div
         id="mysteryQuestionCard"
@@ -5594,7 +6019,10 @@ function createMysteryStars(stage){
 
 }
 
-function openMysteryBox(){
+function openMysteryBox(
+  selectedQuestionIndex,
+  clickedBox
+){
 
   if(
     ANSWER_LOCKED ||
@@ -5603,19 +6031,22 @@ function openMysteryBox(){
     return;
   }
 
-  const question =
-    CURRENT_ACTIVITY
-      ?.questions
-      ?.[CURRENT_QUESTION_INDEX];
+  const selectedIndex =
+    Number(
+      selectedQuestionIndex
+    );
 
-  if(!question){
+  if(
+    !Number.isInteger(selectedIndex) ||
+    selectedIndex < CURRENT_QUESTION_INDEX ||
+    !CURRENT_ACTIVITY?.questions?.[selectedIndex] ||
+    String(
+      CURRENT_ACTIVITY.questions[selectedIndex]?.type ||
+      ""
+    ).toLowerCase() !== "mystery"
+  ){
     return;
   }
-
-  const box =
-    document.getElementById(
-      "mainMysteryBox"
-    );
 
   const stage =
     document.getElementById(
@@ -5628,24 +6059,47 @@ function openMysteryBox(){
     );
 
   if(
-    !box ||
+    !clickedBox ||
     !stage ||
     !card ||
-    box.dataset.opened === "1"
+    clickedBox.dataset.opened === "1"
   ){
     return;
   }
 
-  /*
-    يبدأ المؤقت عند فتح الصندوق،
-    وليس قبل ظهور السؤال.
-  */
-  startActivityTimer();
+  moveSelectedQuestionToCurrent(
+    selectedIndex
+  );
 
-  box.dataset.opened =
+  const question =
+    CURRENT_ACTIVITY
+      .questions[
+        CURRENT_QUESTION_INDEX
+      ];
+
+  clickedBox.dataset.opened =
     "1";
 
-  box.classList.add(
+  document
+    .querySelectorAll(
+      ".mystery-choice"
+    )
+    .forEach(box=>{
+
+      box.disabled =
+        true;
+
+      if(
+        box !== clickedBox
+      ){
+        box.classList.add(
+          "mystery-choice-unselected"
+        );
+      }
+
+    });
+
+  clickedBox.classList.add(
     "shaking"
   );
 
@@ -5653,11 +6107,11 @@ function openMysteryBox(){
 
   setTimeout(()=>{
 
-    box.classList.remove(
+    clickedBox.classList.remove(
       "shaking"
     );
 
-    box.classList.add(
+    clickedBox.classList.add(
       "opened"
     );
 
@@ -5668,6 +6122,28 @@ function openMysteryBox(){
 
     glow.className =
       "mystery-glow";
+
+    const boxRect =
+      clickedBox.getBoundingClientRect();
+
+    const stageRect =
+      stage.getBoundingClientRect();
+
+    glow.style.left =
+      (
+        boxRect.left -
+        stageRect.left +
+        boxRect.width / 2
+      ) +
+      "px";
+
+    glow.style.top =
+      (
+        boxRect.top -
+        stageRect.top +
+        boxRect.height / 2
+      ) +
+      "px";
 
     stage.appendChild(
       glow
@@ -5685,7 +6161,7 @@ function openMysteryBox(){
 
   setTimeout(()=>{
 
-    box.classList.add(
+    clickedBox.classList.add(
       "hidden"
     );
 
@@ -5715,8 +6191,8 @@ function openMysteryBox(){
               onclick="chooseMysteryAnswer(${index},this)">
 
               ${
-                getItemImage(answer)
-                  ? `<img src="${esc(getItemImage(answer))}" alt="">`
+                answer.image
+                  ? `<img src="${esc(answer.image)}" alt="">`
                   : ""
               }
 
@@ -5744,10 +6220,7 @@ function chooseMysteryAnswer(
   clickedButton
 ){
 
-  if(
-    ANSWER_LOCKED ||
-    ACTIVITY_FINISHED
-  ){
+  if(ANSWER_LOCKED){
     return;
   }
 
@@ -5829,18 +6302,12 @@ function chooseMysteryAnswer(
 
   }
 
-  recordCurrentTeamAnswer(
-    Boolean(selected?.correct)
-  );
-
   document
     .getElementById(
       "scorePill"
     )
     .textContent =
       `⭐ ${CURRENT_SCORE}`;
-
-  stopActivityTimer();
 
   showNextQuestionButton();
 
