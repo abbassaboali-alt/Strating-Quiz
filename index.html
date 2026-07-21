@@ -5734,6 +5734,14 @@ function popQuestionBalloon(
     selectedIndex
   );
 
+  /*
+    Balloon questions display the configured time first,
+    but the countdown starts only after a balloon is selected.
+  */
+  if(!ACTIVITY_TIMER_INTERVAL){
+    startActivityTimer();
+  }
+
   const question =
     CURRENT_ACTIVITY
       .questions[
@@ -6153,6 +6161,14 @@ function openMysteryBox(
   moveSelectedQuestionToCurrent(
     selectedIndex
   );
+
+  /*
+    Balloon questions display the configured time first,
+    but the countdown starts only after a balloon is selected.
+  */
+  if(!ACTIVITY_TIMER_INTERVAL){
+    startActivityTimer();
+  }
 
   const question =
     CURRENT_ACTIVITY
