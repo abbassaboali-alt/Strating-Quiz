@@ -2275,6 +2275,9 @@ let CURRENT_TEAM_INDEX = 0;
 
 let CURRENT_USAGE_ID = "";
 
+/* Prevent overlapping Firebase reloads from freezing or overwriting the UI. */
+let ACTIVITIES_LOAD_REQUEST_ID = 0;
+
 function getLoginUsername(){
   return String(
     localStorage.getItem("username") ||
@@ -3196,8 +3199,14 @@ function filterActivityCards(){
 }
 
 async function loadStudentActivities(){
+  const requestId = ++ACTIVITIES_LOAD_REQUEST_ID;
+
   const box =
     document.getElementById("openActivitiesBox");
+
+  if(!box){
+    return;
+  }
 
   box.className = "empty";
   box.textContent =
@@ -3208,6 +3217,11 @@ async function loadStudentActivities(){
       loadOpenCourses(),
       loadActivitiesData()
     ]);
+
+    /* Ignore an older request if a newer reload already started. */
+    if(requestId !== ACTIVITIES_LOAD_REQUEST_ID){
+      return;
+    }
 
     setupActorPanel();
 
@@ -3393,6 +3407,10 @@ async function loadStudentActivities(){
 
   }catch(error){
     console.error(error);
+
+    if(requestId !== ACTIVITIES_LOAD_REQUEST_ID){
+      return;
+    }
 
     box.className = "empty";
     box.textContent =
@@ -7770,8 +7788,8 @@ function restartGame(){
 
   recordActivityUsageStart();
 
-  startActivityTimer();
   renderStudentQuestion();
+  prepareTimerForCurrentQuestion();
 
   window.scrollTo({
     top:0,
@@ -7985,16 +8003,12 @@ function playTimerTickSound(){
 
   try{
 
-    const AudioContextClass =
-      window.AudioContext ||
-      window.webkitAudioContext;
+    const audioContext =
+      getSharedAudioContext();
 
-    if(!AudioContextClass){
+    if(!audioContext){
       return;
     }
-
-    const audioContext =
-      new AudioContextClass();
 
     const oscillator =
       audioContext.createOscillator();
@@ -8002,12 +8016,7 @@ function playTimerTickSound(){
     const gain =
       audioContext.createGain();
 
-    /*
-      square يعطي صوت Tick واضح.
-      يمكنك تغييره إلى sine إذا أردت صوتًا أنعم.
-    */
     oscillator.type = "square";
-
     oscillator.frequency.value = 850;
 
     const startTime =
@@ -8032,13 +8041,15 @@ function playTimerTickSound(){
     );
 
     oscillator.connect(gain);
-
-    gain.connect(
-      audioContext.destination
-    );
+    gain.connect(audioContext.destination);
 
     oscillator.start(startTime);
     oscillator.stop(endTime);
+
+    oscillator.onended = ()=>{
+      oscillator.disconnect();
+      gain.disconnect();
+    };
 
   }catch(error){
 
@@ -8050,6 +8061,7 @@ function playTimerTickSound(){
   }
 
 }
+
 function playCorrectSound(){
   playToneSequence([
     {
@@ -8087,67 +8099,43 @@ function playWrongSound(){
 
 function playToneSequence(tones){
   try{
-    const AudioContextClass =
-      window.AudioContext ||
-      window.webkitAudioContext;
+    const audioContext =
+      getSharedAudioContext();
 
-    if(!AudioContextClass){
+    if(!audioContext){
       return;
     }
-
-    const audioContext =
-      new AudioContextClass();
 
     const startTime =
       audioContext.currentTime;
 
     tones.forEach(tone=>{
       const oscillator =
-        audioContext
-          .createOscillator();
+        audioContext.createOscillator();
 
       const gain =
-        audioContext
-          .createGain();
+        audioContext.createGain();
 
       oscillator.type = "sine";
+      oscillator.frequency.value = tone.frequency;
 
-      oscillator.frequency.value =
-        tone.frequency;
+      const toneStart = startTime + tone.delay;
+      const toneEnd = toneStart + tone.duration;
 
-      const toneStart =
-        startTime +
-        tone.delay;
-
-      const toneEnd =
-        toneStart +
-        tone.duration;
-
-      gain.gain.setValueAtTime(
-        0.0001,
-        toneStart
-      );
-
-      gain.gain
-        .exponentialRampToValueAtTime(
-          0.18,
-          toneStart + 0.02
-        );
-
-      gain.gain
-        .exponentialRampToValueAtTime(
-          0.0001,
-          toneEnd
-        );
+      gain.gain.setValueAtTime(0.0001,toneStart);
+      gain.gain.exponentialRampToValueAtTime(0.18,toneStart + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001,toneEnd);
 
       oscillator.connect(gain);
-
-      gain.connect(
-        audioContext.destination
-      );
+      gain.connect(audioContext.destination);
 
       oscillator.start(toneStart);
       oscillator.stop(toneEnd);
+
+      oscillator.onended = ()=>{
+        oscillator.disconnect();
+        gain.disconnect();
+      };
     });
 
   }catch(error){
@@ -8223,6 +8211,12 @@ window.addEventListener(
   "pagehide",
   ()=>{
     stopActivityTimer();
+    clearRandomQuestionTimers();
+    clearWheelState();
+
+    if(SHARED_AUDIO_CONTEXT?.state === "running"){
+      SHARED_AUDIO_CONTEXT.suspend().catch(()=>{});
+    }
   }
 );
 
