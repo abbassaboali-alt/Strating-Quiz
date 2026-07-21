@@ -7216,17 +7216,81 @@ function showNextQuestionButton(){
   area.classList.remove("hidden");
 }
 
+
+/* =====================================
+   CONTINUE BALLOON / MYSTERY GROUP
+   BEFORE MOVING TO ANOTHER MIXED TYPE
+===================================== */
+
+function moveNextGroupedQuestionToCurrent(
+  groupedType
+){
+
+  if(
+    !CURRENT_ACTIVITY ||
+    !Array.isArray(
+      CURRENT_ACTIVITY.questions
+    )
+  ){
+    return false;
+  }
+
+  const normalizedType =
+    String(
+      groupedType ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
+  if(
+    normalizedType !== "balloon" &&
+    normalizedType !== "mystery"
+  ){
+    return false;
+  }
+
+  /*
+    CURRENT_QUESTION_INDEX now points to the next
+    unanswered position. Search from this position
+    for another question of the same grouped type.
+  */
+  const nextSameTypeIndex =
+    CURRENT_ACTIVITY.questions
+      .findIndex(
+        (question,index)=>
+          index >= CURRENT_QUESTION_INDEX &&
+          String(
+            question?.type ||
+            ""
+          )
+          .trim()
+          .toLowerCase() ===
+          normalizedType
+      );
+
+  if(
+    nextSameTypeIndex < 0
+  ){
+    return false;
+  }
+
+  /*
+    Bring the remaining balloon/box question to the
+    current position. The displaced mixed question
+    remains available for later.
+  */
+  moveSelectedQuestionToCurrent(
+    nextSameTypeIndex
+  );
+
+  return true;
+}
+
 function nextQuestionManually(){
 
-  /*
-    إيقاف أي مؤقت خاص بالسؤال العشوائي
-  */
   clearRandomQuestionTimers();
 
-  /*
-    لا تسمح بالانتقال قبل الإجابة،
-    ولا تسمح بالانتقال بعد انتهاء النشاط
-  */
   if(
     !ANSWER_LOCKED ||
     ACTIVITY_FINISHED
@@ -7234,52 +7298,60 @@ function nextQuestionManually(){
     return;
   }
 
-  /*
-    إيقاف مؤقت السؤال الحالي
-    قبل الانتقال للسؤال التالي
-  */
   stopActivityTimer();
 
-  /*
-    إخفاء زر Next بعد الضغط عليه
-  */
   document
-    .getElementById("nextQuestionArea")
+    .getElementById(
+      "nextQuestionArea"
+    )
     .classList
-    .add("hidden");
+    .add(
+      "hidden"
+    );
 
   /*
-    الانتقال إلى رقم السؤال التالي
+    Remember the type that was just answered.
+    In a Mixed activity, Balloon Pop and Mystery Box
+    must finish their remaining grouped items first.
   */
+  const answeredType =
+    String(
+      CURRENT_ACTIVITY
+        ?.questions
+        ?.[CURRENT_QUESTION_INDEX]
+        ?.type ||
+      ""
+    )
+    .trim()
+    .toLowerCase();
+
   CURRENT_QUESTION_INDEX++;
 
-  /*
-    التحقق هل يوجد سؤال آخر
-  */
   if(
     CURRENT_QUESTION_INDEX <
     CURRENT_ACTIVITY.questions.length
   ){
 
     /*
-      السماح بالإجابة على السؤال الجديد
+      When another balloon/box question still exists,
+      move it to the current position before rendering.
+      This prevents jumping to MCQ, Match, Wheel, etc.
     */
+    moveNextGroupedQuestionToCurrent(
+      answeredType
+    );
+
     ANSWER_LOCKED = false;
 
-    /*
-      عرض السؤال الجديد أولًا
-    */
-renderStudentQuestion();
-prepareTimerForCurrentQuestion();
+    renderStudentQuestion();
+    prepareTimerForCurrentQuestion();
 
   }else{
 
-    /*
-      لا يوجد سؤال آخر،
-      لذلك يتم إنهاء النشاط وإظهار النتيجة
-    */
     finishActivity(false);
+
   }
+
 }
 
 async function finishActivity(
