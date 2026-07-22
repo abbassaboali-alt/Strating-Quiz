@@ -456,6 +456,38 @@ button{font-family:inherit;cursor:pointer}
   box-shadow:0 10px 24px rgba(22,68,120,.14);
 }
 
+.revealed-question-media{
+  width:100%;
+  margin:0 auto 18px;
+}
+
+.revealed-question-media img,
+.revealed-question-media video{
+  display:block;
+  width:min(520px,100%);
+  max-height:300px;
+  object-fit:contain;
+  margin:0 auto;
+  border-radius:16px;
+  background:#f3f7fb;
+}
+
+.revealed-question-media iframe{
+  display:block;
+  width:min(680px,100%);
+  aspect-ratio:16/9;
+  margin:0 auto;
+  border:0;
+  border-radius:16px;
+  background:#000;
+}
+
+.revealed-question-media audio{
+  display:block;
+  width:min(620px,100%);
+  margin:0 auto;
+}
+
 .student-answers{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -2896,6 +2928,104 @@ function clean(value){
     .replace(/\s+/g," ");
 }
 
+function buildRevealedQuestionMedia(question){
+
+  const mediaType =
+    String(
+      question?.mediaType ||
+      (
+        question?.video
+          ? "video"
+          : question?.audio
+            ? "audio"
+            : question?.image
+              ? "image"
+              : "none"
+      )
+    )
+    .trim()
+    .toLowerCase();
+
+  const mediaUrl =
+    String(
+      question?.mediaUrl ||
+      question?.video ||
+      question?.audio ||
+      question?.image ||
+      ""
+    ).trim();
+
+  if(
+    !mediaUrl ||
+    mediaType === "none"
+  ){
+    return "";
+  }
+
+  if(mediaType === "image"){
+
+    return `
+      <div class="revealed-question-media">
+        <img
+          src="${esc(mediaUrl)}"
+          alt="Question image"
+          onerror="this.parentElement.style.display='none'">
+      </div>
+    `;
+
+  }
+
+  if(mediaType === "video"){
+
+    const youtubeEmbedUrl =
+      toYouTubeEmbedUrl(
+        mediaUrl
+      );
+
+    if(youtubeEmbedUrl){
+
+      return `
+        <div class="revealed-question-media">
+          <iframe
+            src="${esc(youtubeEmbedUrl)}"
+            title="YouTube question video"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen>
+          </iframe>
+        </div>
+      `;
+
+    }
+
+    return `
+      <div class="revealed-question-media">
+        <video
+          src="${esc(mediaUrl)}"
+          controls
+          playsinline>
+        </video>
+      </div>
+    `;
+
+  }
+
+  if(mediaType === "audio"){
+
+    return `
+      <div class="revealed-question-media">
+        <audio
+          src="${esc(mediaUrl)}"
+          controls>
+        </audio>
+      </div>
+    `;
+
+  }
+
+  return "";
+
+}
+
 function getItemImage(item){
 
   return String(
@@ -4971,7 +5101,22 @@ function renderStudentQuestion(){
       ""
     ).trim();
 
+  /*
+    Balloon and Mystery media must remain hidden until
+    the student selects a balloon or opens a mystery box.
+  */
+  const revealMediaAfterSelection =
+    [
+      "balloon",
+      "mystery"
+    ].includes(
+      String(type)
+        .trim()
+        .toLowerCase()
+    );
+
   if(
+    !revealMediaAfterSelection &&
     mediaUrl &&
     mediaType === "image"
   ){
@@ -4984,6 +5129,7 @@ function renderStudentQuestion(){
       .remove("hidden");
 
   }else if(
+    !revealMediaAfterSelection &&
     mediaUrl &&
     mediaType === "video"
   ){
@@ -5016,6 +5162,7 @@ function renderStudentQuestion(){
     }
 
   }else if(
+    !revealMediaAfterSelection &&
     mediaUrl &&
     mediaType === "audio"
   ){
@@ -6551,6 +6698,8 @@ function popQuestionBalloon(
         )}
       </div>
 
+      ${buildRevealedQuestionMedia(question)}
+
       <div class="balloon-options">
 
         ${(question.answers || [])
@@ -6993,6 +7142,8 @@ function openMysteryBox(
           "Choose the correct answer."
         )}
       </div>
+
+      ${buildRevealedQuestionMedia(question)}
 
       <div class="mystery-options">
 
