@@ -445,6 +445,17 @@ button{font-family:inherit;cursor:pointer}
   background:#f5f8fa;
 }
 
+.question-youtube{
+  width:min(720px,100%);
+  aspect-ratio:16/9;
+  display:block;
+  margin:0 auto 20px;
+  border:0;
+  border-radius:18px;
+  background:#000;
+  box-shadow:0 10px 24px rgba(22,68,120,.14);
+}
+
 .student-answers{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -2343,8 +2354,28 @@ button{font-family:inherit;cursor:pointer}
       <h2 id="gameQuestion" class="game-question"></h2>
 
       <img id="gameQuestionImage" class="question-image hidden" alt="Question image">
-      <video id="gameQuestionVideo" class="question-image hidden" controls playsinline></video>
-      <audio id="gameQuestionAudio" class="hidden" controls style="width:100%;margin:0 auto 20px"></audio>
+
+      <video
+        id="gameQuestionVideo"
+        class="question-image hidden"
+        controls
+        playsinline>
+      </video>
+
+      <iframe
+        id="gameQuestionYouTube"
+        class="question-youtube hidden"
+        title="YouTube video"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen>
+      </iframe>
+
+      <audio
+        id="gameQuestionAudio"
+        class="hidden"
+        controls
+        style="width:100%;margin:0 auto 20px">
+      </audio>
 
       <div id="studentAnswers" class="student-answers"></div>
       <div id="feedback" class="feedback"></div>
@@ -2730,6 +2761,132 @@ function esc(value){
     .replaceAll(">","&gt;")
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
+}
+
+function getYouTubeVideoId(value){
+
+  const raw =
+    String(value || "")
+      .trim();
+
+  if(!raw){
+    return "";
+  }
+
+  try{
+
+    const normalized =
+      /^https?:\/\//i.test(raw)
+        ? raw
+        : "https://" + raw;
+
+    const url =
+      new URL(normalized);
+
+    const host =
+      url.hostname
+        .replace(/^www\./i,"")
+        .toLowerCase();
+
+    if(host === "youtu.be"){
+
+      return String(
+        url.pathname
+          .split("/")
+          .filter(Boolean)[0] ||
+        ""
+      ).trim();
+
+    }
+
+    if(
+      host === "youtube.com" ||
+      host === "m.youtube.com" ||
+      host === "music.youtube.com" ||
+      host === "youtube-nocookie.com"
+    ){
+
+      const watchId =
+        String(
+          url.searchParams.get("v") ||
+          ""
+        ).trim();
+
+      if(watchId){
+        return watchId;
+      }
+
+      const parts =
+        url.pathname
+          .split("/")
+          .filter(Boolean);
+
+      if(
+        parts.length >= 2 &&
+        [
+          "embed",
+          "shorts",
+          "live"
+        ].includes(
+          String(parts[0]).toLowerCase()
+        )
+      ){
+
+        return String(
+          parts[1] ||
+          ""
+        ).trim();
+
+      }
+
+    }
+
+  }catch(error){
+
+    console.warn(
+      "Invalid YouTube URL:",
+      error
+    );
+
+  }
+
+  const fallbackMatch =
+    raw.match(
+      /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?.*?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{6,})/i
+    );
+
+  return fallbackMatch
+    ? String(
+        fallbackMatch[1] ||
+        ""
+      ).trim()
+    : "";
+
+}
+
+function isYouTubeUrl(value){
+
+  return Boolean(
+    getYouTubeVideoId(value)
+  );
+
+}
+
+function toYouTubeEmbedUrl(value){
+
+  const videoId =
+    getYouTubeVideoId(value);
+
+  if(!videoId){
+    return "";
+  }
+
+  return (
+    "https://www.youtube-nocookie.com/embed/" +
+    encodeURIComponent(videoId) +
+    "?rel=0"
+  );
+
 }
 
 function clean(value){
@@ -4752,18 +4909,43 @@ function renderStudentQuestion(){
       "gameQuestionVideo"
     );
 
+  const questionYouTube =
+    document.getElementById(
+      "gameQuestionYouTube"
+    );
+
   const questionAudio =
     document.getElementById(
       "gameQuestionAudio"
     );
 
-  questionImage.classList.add("hidden");
-  questionVideo.classList.add("hidden");
-  questionAudio.classList.add("hidden");
+  questionImage
+    .classList
+    .add("hidden");
 
-  questionImage.removeAttribute("src");
-  questionVideo.removeAttribute("src");
-  questionAudio.removeAttribute("src");
+  questionVideo
+    .classList
+    .add("hidden");
+
+  questionYouTube
+    .classList
+    .add("hidden");
+
+  questionAudio
+    .classList
+    .add("hidden");
+
+  questionImage
+    .removeAttribute("src");
+
+  questionVideo
+    .removeAttribute("src");
+
+  questionYouTube
+    .removeAttribute("src");
+
+  questionAudio
+    .removeAttribute("src");
 
   questionVideo.pause();
   questionAudio.pause();
@@ -4781,23 +4963,72 @@ function renderStudentQuestion(){
     );
 
   const mediaUrl =
-    question.mediaUrl ||
-    question.video ||
-    question.audio ||
-    question.image ||
-    "";
+    String(
+      question.mediaUrl ||
+      question.video ||
+      question.audio ||
+      question.image ||
+      ""
+    ).trim();
 
-  if(mediaUrl && mediaType === "image"){
-    questionImage.src = mediaUrl;
-    questionImage.classList.remove("hidden");
-  }else if(mediaUrl && mediaType === "video"){
-    questionVideo.src = mediaUrl;
-    questionVideo.classList.remove("hidden");
-    questionVideo.load();
-  }else if(mediaUrl && mediaType === "audio"){
-    questionAudio.src = mediaUrl;
-    questionAudio.classList.remove("hidden");
+  if(
+    mediaUrl &&
+    mediaType === "image"
+  ){
+
+    questionImage.src =
+      mediaUrl;
+
+    questionImage
+      .classList
+      .remove("hidden");
+
+  }else if(
+    mediaUrl &&
+    mediaType === "video"
+  ){
+
+    const youtubeEmbedUrl =
+      toYouTubeEmbedUrl(
+        mediaUrl
+      );
+
+    if(youtubeEmbedUrl){
+
+      questionYouTube.src =
+        youtubeEmbedUrl;
+
+      questionYouTube
+        .classList
+        .remove("hidden");
+
+    }else{
+
+      questionVideo.src =
+        mediaUrl;
+
+      questionVideo
+        .classList
+        .remove("hidden");
+
+      questionVideo.load();
+
+    }
+
+  }else if(
+    mediaUrl &&
+    mediaType === "audio"
+  ){
+
+    questionAudio.src =
+      mediaUrl;
+
+    questionAudio
+      .classList
+      .remove("hidden");
+
     questionAudio.load();
+
   }
 
   const feedback =
@@ -8313,6 +8544,11 @@ async function backToActivities(){
       "gameQuestionVideo"
     );
 
+  const youtube =
+    document.getElementById(
+      "gameQuestionYouTube"
+    );
+
   const audio =
     document.getElementById(
       "gameQuestionAudio"
@@ -8320,6 +8556,15 @@ async function backToActivities(){
 
   video.pause();
   audio.pause();
+
+  /*
+    إزالة رابط iframe توقف فيديو YouTube
+    فور الرجوع إلى قائمة الأنشطة.
+  */
+  if(youtube){
+    youtube.removeAttribute("src");
+    youtube.classList.add("hidden");
+  }
 
   CURRENT_ACTIVITY = null;
   CURRENT_COURSE = null;
