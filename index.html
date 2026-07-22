@@ -1,3 +1,83 @@
+<style>
+/* =========================================================
+   PRUDLE — FULL WIDTH / FULL SCREEN + ULTRA NARROW MARGINS
+   Weebly / Caspio Safe + Mobile Friendly
+========================================================= */
+
+/* 1) الصفحة بكامل العرض بدون أي هوامش */
+html, body{
+  margin:0 !important;
+  padding:0 !important;
+  width:100% !important;
+  max-width:100% !important;
+  overflow-x:hidden !important;
+}
+
+/* 2) كل العناصر داخل الصفحة لا تكسر العرض */
+*,
+*::before,
+*::after{
+  box-sizing:border-box !important;
+}
+
+/* 3) كسر أي حاويات من القالب قد تقيد العرض */
+.container, .section, .wrapper, .content, .main-content,
+#page, #main, #body, #content,
+[class*="container"], [class*="wrapper"], [class*="content"]{
+  width:100% !important;
+  max-width:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+
+/* 4) هوامش داخلية عامة (تضييق الهوامش) */
+:root{
+  --gutter: 6px;          /* ✅ غيّرها 4px أو 8px حسب رغبتك */
+  --radius: 14px;
+}
+
+/* أي عنصر رئيسي في الصفحة خليه يستفيد من الـ gutter */
+body{
+  font-family:'Tajawal', sans-serif;
+  background:#f4f6fb;
+  padding:var(--gutter) !important;  /* ✅ يديك هامش صغير جدًا حول الصفحة */
+}
+
+/* 5) تقليل هوامش عناصر واجهتك (بدون ما تخرب التصميم) */
+.logout-badge,
+.header,
+.actions,
+.stats,
+.filters,
+.wrap{
+  margin:var(--gutter) !important;
+}
+
+/* 6) تحسين العرض على الجوال (هوامش أضيق + تكبير لمس) */
+@media (max-width: 768px){
+  :root{ --gutter: 4px; }
+  .header{ font-size:18px !important; }
+  .header img{ width:58px !important; height:58px !important; }
+  .btn{ padding:10px 12px !important; }
+}
+
+/* 7) الجدول: اجعله يتمدد ولا يخرج خارج الشاشة */
+table{
+  width:max-content;
+  max-width:100%;
+}
+.course-body{
+  overflow-x:auto !important;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* 8) منع أي عنصر يسبب سكرول أفقي بالقوة */
+img, video, canvas{
+  max-width:100% !important;
+  height:auto !important;
+}
+</style>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
