@@ -1,83 +1,3 @@
-<style>
-/* =========================================================
-   PRUDLE — FULL WIDTH / FULL SCREEN + ULTRA NARROW MARGINS
-   Weebly / Caspio Safe + Mobile Friendly
-========================================================= */
-
-/* 1) الصفحة بكامل العرض بدون أي هوامش */
-html, body{
-  margin:0 !important;
-  padding:0 !important;
-  width:100% !important;
-  max-width:100% !important;
-  overflow-x:hidden !important;
-}
-
-/* 2) كل العناصر داخل الصفحة لا تكسر العرض */
-*,
-*::before,
-*::after{
-  box-sizing:border-box !important;
-}
-
-/* 3) كسر أي حاويات من القالب قد تقيد العرض */
-.container, .section, .wrapper, .content, .main-content,
-#page, #main, #body, #content,
-[class*="container"], [class*="wrapper"], [class*="content"]{
-  width:100% !important;
-  max-width:100% !important;
-  margin:0 !important;
-  padding:0 !important;
-}
-
-/* 4) هوامش داخلية عامة (تضييق الهوامش) */
-:root{
-  --gutter: 6px;          /* ✅ غيّرها 4px أو 8px حسب رغبتك */
-  --radius: 14px;
-}
-
-/* أي عنصر رئيسي في الصفحة خليه يستفيد من الـ gutter */
-body{
-  font-family:'Tajawal', sans-serif;
-  background:#f4f6fb;
-  padding:var(--gutter) !important;  /* ✅ يديك هامش صغير جدًا حول الصفحة */
-}
-
-/* 5) تقليل هوامش عناصر واجهتك (بدون ما تخرب التصميم) */
-.logout-badge,
-.header,
-.actions,
-.stats,
-.filters,
-.wrap{
-  margin:var(--gutter) !important;
-}
-
-/* 6) تحسين العرض على الجوال (هوامش أضيق + تكبير لمس) */
-@media (max-width: 768px){
-  :root{ --gutter: 4px; }
-  .header{ font-size:18px !important; }
-  .header img{ width:58px !important; height:58px !important; }
-  .btn{ padding:10px 12px !important; }
-}
-
-/* 7) الجدول: اجعله يتمدد ولا يخرج خارج الشاشة */
-table{
-  width:max-content;
-  max-width:100%;
-}
-.course-body{
-  overflow-x:auto !important;
-  -webkit-overflow-scrolling:touch;
-}
-
-/* 8) منع أي عنصر يسبب سكرول أفقي بالقوة */
-img, video, canvas{
-  max-width:100% !important;
-  height:auto !important;
-}
-</style>
-
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -9337,6 +9257,746 @@ window.addEventListener(
     await loadStudentActivities();
   }
 );
+</script>
+
+
+<style>
+.live-individual-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#e8faf2;
+  color:#08744f;
+  font-size:12px;
+  font-weight:900;
+}
+.live-individual-empty{
+  text-align:center;
+  padding:35px 15px;
+  color:var(--muted);
+  font-weight:800;
+}
+</style>
+
+<script>
+(function(){
+
+  const LIVE_SESSIONS_COLLECTION =
+    "FunActivityLiveSessions";
+
+  let ACTIVE_INDIVIDUAL_SESSIONS = [];
+  let CURRENT_LIVE_SESSION_ID = "";
+  let LIVE_SESSIONS_UNSUBSCRIBE = null;
+  let PROGRESS_TIMER = null;
+
+  const originalStartActivity =
+    window.startActivity;
+
+  const originalRecordCurrentTeamAnswer =
+    window.recordCurrentTeamAnswer;
+
+  const originalFinishActivity =
+    window.finishActivity;
+
+  function liveSafe(value){
+    return String(value ?? "").trim();
+  }
+
+  function getLiveStudentId(){
+    return liveSafe(
+      getLoginStudentId()
+    );
+  }
+
+  function getLiveStudentName(){
+    const actor =
+      typeof getActorData === "function"
+        ? getActorData()
+        : null;
+
+    return liveSafe(
+      actor?.name ||
+      actor?.id ||
+      getLiveStudentId() ||
+      "Student"
+    );
+  }
+
+  function getParticipantDocId(){
+    return (
+      getLiveStudentId() ||
+      "student"
+    ).replace(
+      /[^A-Za-z0-9_-]/g,
+      "_"
+    );
+  }
+
+  async function fetchActiveIndividualSessions(){
+
+    const snap =
+      await db
+        .collection(
+          LIVE_SESSIONS_COLLECTION
+        )
+        .where(
+          "status",
+          "==",
+          "active"
+        )
+        .get();
+
+    ACTIVE_INDIVIDUAL_SESSIONS =
+      snap.docs
+        .map(doc=>({
+          id:doc.id,
+          ...doc.data()
+        }))
+        .filter(item=>
+          item.mode === "individual"
+        );
+  }
+
+  function findLiveSession(
+    activityId,
+    courseId
+  ){
+    return ACTIVE_INDIVIDUAL_SESSIONS
+      .find(item=>
+        liveSafe(item.activityId) ===
+          liveSafe(activityId) &&
+        (
+          !courseId ||
+          liveSafe(item.courseId) ===
+            liveSafe(courseId)
+        ) &&
+        item.status === "active" &&
+        item.mode === "individual"
+      ) || null;
+  }
+
+  function startLiveListener(){
+
+    if(LIVE_SESSIONS_UNSUBSCRIBE){
+      return;
+    }
+
+    LIVE_SESSIONS_UNSUBSCRIBE =
+      db
+        .collection(
+          LIVE_SESSIONS_COLLECTION
+        )
+        .where(
+          "status",
+          "==",
+          "active"
+        )
+        .onSnapshot(
+          snapshot=>{
+
+            ACTIVE_INDIVIDUAL_SESSIONS =
+              snapshot.docs
+                .map(doc=>({
+                  id:doc.id,
+                  ...doc.data()
+                }))
+                .filter(item=>
+                  item.mode ===
+                  "individual"
+                );
+
+            loadStudentActivities();
+
+          },
+          error=>{
+            console.error(
+              "Individual session listener:",
+              error
+            );
+          }
+        );
+  }
+
+  window.loadStudentActivities =
+    async function(){
+
+      const requestId =
+        ++ACTIVITIES_LOAD_REQUEST_ID;
+
+      const box =
+        document.getElementById(
+          "openActivitiesBox"
+        );
+
+      box.className = "empty";
+      box.textContent =
+        "Checking Individual activities opened by admin or trainer...";
+
+      try{
+
+        await Promise.all([
+          loadOpenCourses(),
+          loadActivitiesData(),
+          fetchActiveIndividualSessions()
+        ]);
+
+        if(
+          requestId !==
+          ACTIVITIES_LOAD_REQUEST_ID
+        ){
+          return;
+        }
+
+        setupActorPanel();
+
+        /*
+          IMPORTANT:
+          No student-course relationship is checked here.
+          Every active Individual session is visible to every
+          logged-in student.
+        */
+        const available =
+          ACTIVE_INDIVIDUAL_SESSIONS
+            .map(session=>{
+
+              const activity =
+                ACTIVITIES_CACHE.find(
+                  item=>
+                    item.id ===
+                    session.activityId
+                );
+
+              const course =
+                OPEN_COURSES_CACHE.find(
+                  item=>
+                    item.id ===
+                    session.courseId
+                ) ||
+                (
+                  activity
+                    ? findCourseForActivity(
+                        activity
+                      )
+                    : null
+                );
+
+              return {
+                session,
+                activity,
+                course
+              };
+            })
+            .filter(item=>
+              item.activity &&
+              Array.isArray(
+                item.activity.questions
+              ) &&
+              item.activity.questions.length > 0
+            );
+
+        if(!available.length){
+
+          box.className =
+            "live-individual-empty";
+
+          box.innerHTML = `
+            <i
+              class="fa-solid fa-mobile-screen-button"
+              style="
+                display:block;
+                margin-bottom:10px;
+                color:var(--blue);
+                font-size:38px;
+              ">
+            </i>
+
+            No Individual activity is currently open.
+
+            <small style="
+              display:block;
+              margin-top:8px;
+              color:var(--muted);
+            ">
+              Team activities remain on the trainer screen.
+            </small>
+          `;
+
+          return;
+        }
+
+        box.className =
+          "open-activity-list";
+
+        box.innerHTML =
+          available.map(({
+            session,
+            activity,
+            course
+          })=>{
+
+            const courseName =
+              course
+                ? getCourseName(course)
+                : (
+                    session.courseName ||
+                    "General Activity"
+                  );
+
+            const trainerName =
+              course
+                ? getTrainer(
+                    course,
+                    activity
+                  )
+                : (
+                    session.trainerName ||
+                    "Not Specified"
+                  );
+
+            const questionCount =
+              activity.questions.length;
+
+            return `
+              <article
+                class="open-activity-card"
+                data-types="${esc(
+                  getActivityGameTypes(
+                    activity
+                  ).join(",")
+                )}"
+                data-search="${esc([
+                  activity.title || "",
+                  activity.description || "",
+                  courseName,
+                  trainerName,
+                  session.branch || "",
+                  session.section || ""
+                ].join(" ").toLowerCase())}">
+
+                <div class="activity-card-head">
+
+                  <div class="game-type-list">
+                    ${renderActivityGameBadges(activity)}
+                  </div>
+
+                  <span class="live-individual-badge">
+                    <i class="fa-solid fa-signal"></i>
+                    Live Individual
+                  </span>
+
+                </div>
+
+                <h3>
+                  ${esc(
+                    activity.title ||
+                    "Interactive Activity"
+                  )}
+                </h3>
+
+                <p style="
+                  color:var(--muted);
+                  min-height:44px;
+                ">
+                  ${esc(
+                    activity.description ||
+                    "Educational and recreational activity"
+                  )}
+                </p>
+
+                <div class="activity-meta">
+
+                  <span class="mini">
+                    <i class="fa-solid fa-book"></i>
+                    ${esc(courseName)}
+                  </span>
+
+                  <span class="mini">
+                    <i class="fa-solid fa-user-tie"></i>
+                    ${esc(trainerName)}
+                  </span>
+
+                  <span class="mini">
+                    <i class="fa-solid fa-circle-question"></i>
+                    ${questionCount}
+                    Questions
+                  </span>
+
+                </div>
+
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  onclick="startOpenIndividualActivity(
+                    '${esc(session.id)}',
+                    '${esc(activity.id)}',
+                    '${esc(session.courseId || course?.id || "")}'
+                  )">
+
+                  <i class="fa-solid fa-mobile-screen-button"></i>
+                  Start Activity
+                </button>
+
+              </article>
+            `;
+          }).join("");
+
+        if(
+          typeof filterActivityCards ===
+          "function"
+        ){
+          filterActivityCards();
+        }
+
+        startLiveListener();
+
+      }catch(error){
+
+        console.error(error);
+
+        box.className = "empty";
+        box.textContent =
+          "Unable to load Individual activities.";
+      }
+    };
+
+  window.startOpenIndividualActivity =
+    async function(
+      sessionId,
+      activityId,
+      courseId
+    ){
+
+      const session =
+        ACTIVE_INDIVIDUAL_SESSIONS
+          .find(item=>
+            item.id === sessionId &&
+            item.status === "active" &&
+            item.mode === "individual"
+          );
+
+      if(!session){
+
+        alert(
+          "This Individual activity is no longer active."
+        );
+
+        loadStudentActivities();
+        return;
+      }
+
+      CURRENT_LIVE_SESSION_ID =
+        sessionId;
+
+      originalStartActivity(
+        activityId,
+        courseId
+      );
+
+      /*
+        Individual mode:
+        skip the Teams / Groups screen and use one participant
+        named with the logged-in student's identity.
+      */
+      const countSelect =
+        document.getElementById(
+          "teamCountSelect"
+        );
+
+      if(countSelect){
+        countSelect.value = "1";
+      }
+
+      if(
+        typeof renderTeamNameInputs ===
+        "function"
+      ){
+        renderTeamNameInputs();
+      }
+
+      const nameInput =
+        document.querySelector(
+          ".team-name-input"
+        );
+
+      if(nameInput){
+        nameInput.value =
+          getLiveStudentName();
+      }
+
+      if(
+        typeof confirmTeamSetup ===
+        "function"
+      ){
+        confirmTeamSetup();
+      }
+
+      await publishStudentProgress(
+        "started",
+        true
+      );
+    };
+
+  window.startActivity =
+    function(activityId,courseId){
+
+      const session =
+        findLiveSession(
+          activityId,
+          courseId
+        );
+
+      if(!session){
+
+        alert(
+          "This activity has not been opened in Individual mode."
+        );
+
+        return;
+      }
+
+      startOpenIndividualActivity(
+        session.id,
+        activityId,
+        courseId
+      );
+    };
+
+  async function publishStudentProgress(
+    status="playing",
+    force=false
+  ){
+
+    if(!CURRENT_LIVE_SESSION_ID){
+      return;
+    }
+
+    if(PROGRESS_TIMER){
+      clearTimeout(PROGRESS_TIMER);
+      PROGRESS_TIMER = null;
+    }
+
+    const execute =
+      async function(){
+
+        const participant =
+          Array.isArray(TEAMS)
+            ? TEAMS[0]
+            : null;
+
+        const total =
+          Number(
+            CURRENT_ACTIVITY
+              ?.questions
+              ?.length ||
+            0
+          );
+
+        const answered =
+          Number(
+            participant?.answered ||
+            Math.min(
+              total,
+              CURRENT_QUESTION_INDEX
+            ) ||
+            0
+          );
+
+        const correct =
+          Number(
+            participant?.correct ||
+            CURRENT_SCORE ||
+            0
+          );
+
+        const progressPercent =
+          total
+            ? Math.min(
+                100,
+                Math.round(
+                  (
+                    (
+                      status ===
+                      "completed"
+                        ? total
+                        : answered
+                    ) /
+                    total
+                  ) * 100
+                )
+              )
+            : 0;
+
+        const scorePercent =
+          total
+            ? Math.round(
+                (
+                  correct /
+                  total
+                ) * 100
+              )
+            : 0;
+
+        try{
+
+          await db
+            .collection(
+              LIVE_SESSIONS_COLLECTION
+            )
+            .doc(
+              CURRENT_LIVE_SESSION_ID
+            )
+            .collection(
+              "participants"
+            )
+            .doc(
+              getParticipantDocId()
+            )
+            .set({
+
+              sessionId:
+                CURRENT_LIVE_SESSION_ID,
+
+              activityId:
+                CURRENT_ACTIVITY?.id ||
+                "",
+
+              activityTitle:
+                CURRENT_ACTIVITY?.title ||
+                "",
+
+              courseId:
+                CURRENT_COURSE?.id ||
+                "",
+
+              courseName:
+                CURRENT_COURSE
+                  ? getCourseName(
+                      CURRENT_COURSE
+                    )
+                  : "",
+
+              studentId:
+                getLiveStudentId(),
+
+              studentIqama:
+                getLiveStudentId(),
+
+              studentName:
+                getLiveStudentName(),
+
+              status,
+              answered,
+              correct,
+              totalQuestions:total,
+              progressPercent,
+              scorePercent,
+
+              currentQuestion:
+                Math.min(
+                  total,
+                  CURRENT_QUESTION_INDEX +
+                  (
+                    status ===
+                    "completed"
+                      ? 1
+                      : 0
+                  )
+                ),
+
+              updatedAt:
+                firebase
+                  .firestore
+                  .FieldValue
+                  .serverTimestamp(),
+
+              ...(
+                status === "started"
+                  ? {
+                      startedAt:
+                        firebase
+                          .firestore
+                          .FieldValue
+                          .serverTimestamp()
+                    }
+                  : {}
+              ),
+
+              ...(
+                status === "completed"
+                  ? {
+                      completedAt:
+                        firebase
+                          .firestore
+                          .FieldValue
+                          .serverTimestamp()
+                    }
+                  : {}
+              )
+
+            },{
+              merge:true
+            });
+
+        }catch(error){
+
+          console.warn(
+            "Unable to publish student progress:",
+            error
+          );
+        }
+      };
+
+    if(force){
+      await execute();
+    }else{
+      PROGRESS_TIMER =
+        setTimeout(
+          execute,
+          180
+        );
+    }
+  }
+
+  window.recordCurrentTeamAnswer =
+    function(
+      isCorrect,
+      raceSteps=1
+    ){
+
+      const result =
+        originalRecordCurrentTeamAnswer(
+          isCorrect,
+          raceSteps
+        );
+
+      publishStudentProgress(
+        "playing"
+      );
+
+      return result;
+    };
+
+  window.finishActivity =
+    async function(
+      finishedByTimeout=false
+    ){
+
+      const result =
+        await originalFinishActivity(
+          finishedByTimeout
+        );
+
+      await publishStudentProgress(
+        "completed",
+        true
+      );
+
+      return result;
+    };
+
+})();
 </script>
 
 </body>
