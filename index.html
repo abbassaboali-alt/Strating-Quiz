@@ -9856,21 +9856,19 @@ window.addEventListener(
         return;
       }
 
+      /*
+        Course selection is optional before opening the mode selector.
+        It becomes mandatory only when Individual mode is selected.
+        Teams mode may run with or without a selected course.
+      */
       const course =
         getSelectedCourseForMode();
-
-      if(!course){
-        alert(
-          "Select the course that will use this activity first."
-        );
-        return;
-      }
 
       pendingActivityId =
         activityId;
 
       pendingCourseId =
-        course.id;
+        course?.id || "";
 
       const individualCard =
         document.getElementById(
@@ -10021,10 +10019,23 @@ window.addEventListener(
             pendingCourseId
         ) || null;
 
-      if(!activity || !course){
+      if(!activity){
 
         alert(
-          "Unable to find the activity or course."
+          "Unable to find the activity."
+        );
+
+        return;
+      }
+
+      /*
+        Individual mode is available only after choosing a course.
+        The selected course determines which students can see it.
+      */
+      if(!course){
+
+        alert(
+          "Select a course first. A course is required for Individual mode."
         );
 
         return;
