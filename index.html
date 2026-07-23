@@ -9999,5 +9999,1199 @@ window.addEventListener(
 })();
 </script>
 
+
+<style>
+/* =========================================================
+   PRUDLE — TEAMS / INDIVIDUAL MODE SELECTOR
+========================================================= */
+.prudle-mode-modal{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(11,31,52,.78);
+  backdrop-filter:blur(5px);
+}
+
+.prudle-mode-modal.hidden{
+  display:none!important;
+}
+
+.prudle-mode-dialog{
+  width:min(760px,100%);
+  max-height:92vh;
+  overflow:auto;
+  padding:25px;
+  border-radius:26px;
+  background:#fff;
+  box-shadow:0 30px 80px rgba(0,0,0,.30);
+}
+
+.prudle-mode-dialog h2{
+  margin:0 0 7px;
+  text-align:center;
+  color:var(--blue);
+}
+
+.prudle-mode-dialog>p{
+  margin:0 0 20px;
+  text-align:center;
+  color:var(--muted);
+  line-height:1.7;
+}
+
+.prudle-mode-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:15px;
+}
+
+.prudle-mode-card{
+  min-height:235px;
+  padding:20px;
+  border:2px solid var(--border);
+  border-radius:21px;
+  background:#fff;
+  text-align:center;
+  transition:.2s;
+}
+
+.prudle-mode-card:hover{
+  transform:translateY(-4px);
+  border-color:var(--blue2);
+  box-shadow:0 14px 28px rgba(22,68,120,.13);
+}
+
+.prudle-mode-card.individual:hover{
+  border-color:var(--green);
+}
+
+.prudle-mode-icon{
+  width:78px;
+  height:78px;
+  margin:0 auto 12px;
+  border-radius:23px;
+  display:grid;
+  place-items:center;
+  background:#edf4fa;
+  font-size:36px;
+}
+
+.prudle-mode-card.individual .prudle-mode-icon{
+  background:#e8faf2;
+}
+
+.prudle-mode-card h3{
+  margin:0 0 8px;
+  color:var(--blue);
+}
+
+.prudle-mode-card p{
+  min-height:72px;
+  margin:0 0 14px;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.65;
+}
+
+/* =========================================================
+   PRUDLE — LIVE INDIVIDUAL MONITOR
+========================================================= */
+.prudle-live-monitor{
+  width:min(1200px,94%);
+  margin:24px auto 50px;
+}
+
+.prudle-live-hero{
+  padding:22px;
+  border-radius:24px;
+  color:#fff;
+  background:linear-gradient(135deg,#164478,#2467a5);
+  box-shadow:0 14px 35px rgba(22,68,120,.24);
+}
+
+.prudle-live-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.prudle-live-title h2{
+  margin:0 0 5px;
+}
+
+.prudle-live-title p{
+  margin:0;
+  opacity:.84;
+}
+
+.prudle-live-badge{
+  padding:9px 14px;
+  border:1px solid rgba(255,255,255,.28);
+  border-radius:999px;
+  background:rgba(255,255,255,.16);
+  font-weight:900;
+}
+
+.prudle-live-summary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(150px,1fr));
+  gap:12px;
+  margin:17px 0;
+}
+
+.prudle-live-stat{
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:#fff;
+}
+
+.prudle-live-stat span{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+
+.prudle-live-stat b{
+  display:block;
+  margin-top:4px;
+  color:var(--blue);
+  font-size:28px;
+}
+
+.prudle-participants-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(235px,1fr));
+  gap:13px;
+}
+
+.prudle-participant-card{
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:#fff;
+}
+
+.prudle-participant-card.completed{
+  border-color:#8bd5b8;
+  background:#f5fffb;
+}
+
+.prudle-participant-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+}
+
+.prudle-participant-name{
+  color:var(--blue);
+  font-weight:900;
+  overflow-wrap:anywhere;
+}
+
+.prudle-participant-status{
+  padding:5px 9px;
+  border-radius:999px;
+  background:#fff4d7;
+  color:#8a6600;
+  font-size:11px;
+  font-weight:900;
+}
+
+.prudle-participant-card.completed .prudle-participant-status{
+  background:#e4f8ef;
+  color:#08744f;
+}
+
+.prudle-progress-track{
+  height:10px;
+  margin:13px 0 9px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#e8eef4;
+}
+
+.prudle-progress-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--gold),var(--green));
+  transition:.25s;
+}
+
+.prudle-participant-meta{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:7px;
+}
+
+.prudle-participant-meta div{
+  padding:8px;
+  border-radius:11px;
+  text-align:center;
+  background:#f4f8fb;
+}
+
+.prudle-participant-meta small{
+  display:block;
+  color:var(--muted);
+  font-size:9px;
+}
+
+.prudle-participant-meta b{
+  display:block;
+  margin-top:2px;
+  color:var(--text);
+}
+
+@media(max-width:700px){
+  .prudle-mode-grid{
+    grid-template-columns:1fr;
+  }
+
+  .prudle-live-summary{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+</style>
+
+<div id="prudleActivityModeModal" class="prudle-mode-modal hidden">
+  <div class="prudle-mode-dialog">
+
+    <h2>Select Activity Mode</h2>
+
+    <p>
+      Choose whether the activity will be completed by teams
+      from the trainer screen or individually using student phones.
+    </p>
+
+    <div class="prudle-mode-grid">
+
+      <button
+        class="prudle-mode-card"
+        type="button"
+        onclick="startPrudleTeamsMode()">
+
+        <div class="prudle-mode-icon">👥</div>
+
+        <h3>Teams</h3>
+
+        <p>
+          Continue the activity from the trainer screen using
+          the current teams and groups system. Nothing appears
+          in the student panel.
+        </p>
+
+        <span class="btn btn-primary">
+          Start Teams
+        </span>
+      </button>
+
+      <button
+        class="prudle-mode-card individual"
+        type="button"
+        onclick="startPrudleIndividualMode()">
+
+        <div class="prudle-mode-icon">📱</div>
+
+        <h3>Individual (Using Mobile)</h3>
+
+        <p>
+          Open the activity for students registered in the selected
+          course. The trainer screen changes into a live progress monitor.
+        </p>
+
+        <span class="btn btn-success">
+          Open for Students
+        </span>
+      </button>
+
+    </div>
+
+    <div class="actions" style="justify-content:center">
+      <button
+        class="btn btn-light"
+        type="button"
+        onclick="closePrudleActivityModeModal()">
+        Cancel
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<section id="prudleLiveMonitor" class="prudle-live-monitor hidden">
+
+  <div class="prudle-live-hero">
+
+    <div class="prudle-live-head">
+
+      <div class="prudle-live-title">
+        <h2 id="prudleLiveActivityTitle">
+          Individual Activity
+        </h2>
+
+        <p id="prudleLiveCourseInfo"></p>
+      </div>
+
+      <div class="prudle-live-badge">
+        <i class="fa-solid fa-signal"></i>
+        Live Student Progress
+      </div>
+
+    </div>
+
+    <div class="actions">
+
+      <button
+        class="btn btn-light"
+        type="button"
+        onclick="refreshPrudleLiveMonitor()">
+
+        <i class="fa-solid fa-rotate-right"></i>
+        Refresh
+      </button>
+
+      <button
+        class="btn btn-danger"
+        type="button"
+        onclick="endPrudleIndividualSession()">
+
+        <i class="fa-solid fa-stop"></i>
+        End Individual Activity
+      </button>
+
+    </div>
+
+  </div>
+
+  <div class="prudle-live-summary">
+
+    <div class="prudle-live-stat">
+      <span>Students Joined</span>
+      <b id="prudleJoinedCount">0</b>
+    </div>
+
+    <div class="prudle-live-stat">
+      <span>Still Answering</span>
+      <b id="prudlePlayingCount">0</b>
+    </div>
+
+    <div class="prudle-live-stat">
+      <span>Completed</span>
+      <b id="prudleCompletedCount">0</b>
+    </div>
+
+    <div class="prudle-live-stat">
+      <span>Average Progress</span>
+      <b id="prudleAverageProgress">0%</b>
+    </div>
+
+  </div>
+
+  <div class="panel">
+
+    <div class="panel-title">
+      <h2>
+        <i class="fa-solid fa-users-viewfinder"></i>
+        Student Progress
+      </h2>
+    </div>
+
+    <div
+      id="prudleParticipantsGrid"
+      class="prudle-participants-grid">
+
+      <div class="empty">
+        Waiting for students to enter the activity...
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<script>
+(function(){
+
+  const LIVE_SESSIONS_COLLECTION =
+    "FunActivityLiveSessions";
+
+  let pendingActivityId = "";
+  let pendingCourseId = "";
+
+  let activeSessionId = "";
+  let activeSessionData = null;
+
+  let participantsUnsubscribe = null;
+
+  const originalStartActivity =
+    window.startActivity;
+
+  function safeValue(value){
+    return String(value ?? "").trim();
+  }
+
+  function getSelectedCourseForMode(activity){
+
+    const selectedId =
+      document
+        .getElementById(
+          "trainerTargetCourse"
+        )
+        ?.value ||
+      "";
+
+    return (
+      OPEN_COURSES_CACHE.find(
+        course=>
+          course.id === selectedId
+      ) ||
+      (
+        typeof getSelectedTargetCourse ===
+        "function"
+          ? getSelectedTargetCourse(activity)
+          : null
+      ) ||
+      (
+        typeof findCourseForActivity ===
+        "function"
+          ? findCourseForActivity(activity)
+          : null
+      ) ||
+      null
+    );
+  }
+
+  window.startActivity =
+    function(activityId,courseId){
+
+      const role =
+        typeof getLoginRole === "function"
+          ? getLoginRole()
+          : "";
+
+      /*
+        Students and guests keep the original start behavior.
+        Only admin/trainer see the Teams / Individual selector.
+      */
+      if(
+        role !== "admin" &&
+        role !== "trainer"
+      ){
+        return originalStartActivity(
+          activityId,
+          courseId
+        );
+      }
+
+      const activity =
+        ACTIVITIES_CACHE.find(
+          item=>item.id === activityId
+        ) || null;
+
+      if(!activity){
+        alert(
+          "Unable to find the activity."
+        );
+        return;
+      }
+
+      const course =
+        OPEN_COURSES_CACHE.find(
+          item=>item.id === courseId
+        ) ||
+        getSelectedCourseForMode(
+          activity
+        );
+
+      if(!course){
+        alert(
+          "Select the course that will use this activity first."
+        );
+        return;
+      }
+
+      pendingActivityId =
+        activityId;
+
+      pendingCourseId =
+        course.id;
+
+      document
+        .getElementById(
+          "prudleActivityModeModal"
+        )
+        .classList
+        .remove("hidden");
+    };
+
+  window.closePrudleActivityModeModal =
+    function(){
+
+      document
+        .getElementById(
+          "prudleActivityModeModal"
+        )
+        .classList
+        .add("hidden");
+
+      pendingActivityId = "";
+      pendingCourseId = "";
+    };
+
+  window.startPrudleTeamsMode =
+    function(){
+
+      const activityId =
+        pendingActivityId;
+
+      const courseId =
+        pendingCourseId;
+
+      closePrudleActivityModeModal();
+
+      /*
+        Teams mode uses the original activity flow.
+        No live session is created, therefore students
+        cannot see this activity in their panel.
+      */
+      originalStartActivity(
+        activityId,
+        courseId
+      );
+    };
+
+  async function closeExistingSessions(
+    activityId,
+    courseId
+  ){
+
+    const snapshot =
+      await db
+        .collection(
+          LIVE_SESSIONS_COLLECTION
+        )
+        .where(
+          "status",
+          "==",
+          "active"
+        )
+        .get();
+
+    const matching =
+      snapshot.docs.filter(doc=>{
+
+        const data =
+          doc.data() || {};
+
+        return (
+          safeValue(
+            data.activityId
+          ) ===
+            safeValue(activityId) &&
+          safeValue(
+            data.courseId
+          ) ===
+            safeValue(courseId)
+        );
+      });
+
+    if(!matching.length){
+      return;
+    }
+
+    const batch =
+      db.batch();
+
+    matching.forEach(doc=>{
+
+      batch.update(
+        doc.ref,
+        {
+          status:"ended",
+
+          endedAt:
+            firebase
+              .firestore
+              .FieldValue
+              .serverTimestamp(),
+
+          updatedAt:
+            firebase
+              .firestore
+              .FieldValue
+              .serverTimestamp()
+        }
+      );
+    });
+
+    await batch.commit();
+  }
+
+  window.startPrudleIndividualMode =
+    async function(){
+
+      const activity =
+        ACTIVITIES_CACHE.find(
+          item=>
+            item.id ===
+            pendingActivityId
+        ) || null;
+
+      const course =
+        OPEN_COURSES_CACHE.find(
+          item=>
+            item.id ===
+            pendingCourseId
+        ) || null;
+
+      if(!activity || !course){
+
+        alert(
+          "Unable to find the activity or course."
+        );
+
+        return;
+      }
+
+      if(
+        !Array.isArray(
+          activity.questions
+        ) ||
+        !activity.questions.length
+      ){
+
+        alert(
+          "This activity does not contain questions."
+        );
+
+        return;
+      }
+
+      const role =
+        getLoginRole();
+
+      const username =
+        getLoginUsername();
+
+      closePrudleActivityModeModal();
+
+      try{
+
+        await closeExistingSessions(
+          activity.id,
+          course.id
+        );
+
+        const sessionRef =
+          await db
+            .collection(
+              LIVE_SESSIONS_COLLECTION
+            )
+            .add({
+
+              mode:"individual",
+              status:"active",
+
+              activityId:
+                activity.id,
+
+              activityTitle:
+                activity.title ||
+                "Interactive Activity",
+
+              courseId:
+                course.id,
+
+              courseName:
+                getCourseName(course),
+
+              trainerName:
+                getTrainer(
+                  course,
+                  activity
+                ),
+
+              branch:
+                getBranch(
+                  course,
+                  activity
+                ),
+
+              section:
+                getSection(
+                  course,
+                  activity
+                ),
+
+              period:
+                typeof getPeriod ===
+                "function"
+                  ? getPeriod(
+                      course,
+                      activity
+                    )
+                  : "",
+
+              totalQuestions:
+                activity.questions.length,
+
+              launchedByRole:
+                role,
+
+              launchedByUsername:
+                username,
+
+              startedAt:
+                firebase
+                  .firestore
+                  .FieldValue
+                  .serverTimestamp(),
+
+              updatedAt:
+                firebase
+                  .firestore
+                  .FieldValue
+                  .serverTimestamp()
+            });
+
+        activeSessionId =
+          sessionRef.id;
+
+        activeSessionData = {
+          id:
+            sessionRef.id,
+
+          activityId:
+            activity.id,
+
+          activityTitle:
+            activity.title ||
+            "Interactive Activity",
+
+          courseId:
+            course.id,
+
+          courseName:
+            getCourseName(course),
+
+          trainerName:
+            getTrainer(
+              course,
+              activity
+            ),
+
+          totalQuestions:
+            activity.questions.length
+        };
+
+        openLiveMonitor();
+
+      }catch(error){
+
+        console.error(error);
+
+        alert(
+          "Unable to start Individual mode. Check Firebase permissions."
+        );
+      }
+    };
+
+  function hideTrainerPlayer(){
+
+    [
+      "studentStart",
+      "teamSetupArea",
+      "playArea",
+      "resultArea"
+    ].forEach(id=>{
+
+      document
+        .getElementById(id)
+        ?.classList
+        .add("hidden");
+    });
+  }
+
+  function openLiveMonitor(){
+
+    hideTrainerPlayer();
+
+    document
+      .getElementById(
+        "prudleLiveMonitor"
+      )
+      .classList
+      .remove("hidden");
+
+    document
+      .getElementById(
+        "prudleLiveActivityTitle"
+      )
+      .textContent =
+        activeSessionData
+          ?.activityTitle ||
+        "Individual Activity";
+
+    document
+      .getElementById(
+        "prudleLiveCourseInfo"
+      )
+      .textContent =
+        [
+          activeSessionData
+            ?.courseName ||
+            "",
+          activeSessionData
+            ?.trainerName ||
+            ""
+        ]
+        .filter(Boolean)
+        .join(" • ");
+
+    subscribeToParticipants();
+  }
+
+  function subscribeToParticipants(){
+
+    if(participantsUnsubscribe){
+
+      participantsUnsubscribe();
+      participantsUnsubscribe = null;
+    }
+
+    if(!activeSessionId){
+      return;
+    }
+
+    participantsUnsubscribe =
+      db
+        .collection(
+          LIVE_SESSIONS_COLLECTION
+        )
+        .doc(
+          activeSessionId
+        )
+        .collection(
+          "participants"
+        )
+        .onSnapshot(
+          snapshot=>{
+
+            const participants =
+              snapshot.docs.map(
+                doc=>({
+                  id:doc.id,
+                  ...doc.data()
+                })
+              );
+
+            renderParticipants(
+              participants
+            );
+          },
+          error=>{
+            console.error(
+              "Live participants:",
+              error
+            );
+          }
+        );
+  }
+
+  function renderParticipants(rows){
+
+    const total =
+      rows.length;
+
+    const completed =
+      rows.filter(
+        item=>
+          item.status ===
+          "completed"
+      ).length;
+
+    const playing =
+      rows.filter(
+        item=>
+          item.status !==
+          "completed"
+      ).length;
+
+    const average =
+      total
+        ? Math.round(
+            rows.reduce(
+              (sum,item)=>
+                sum +
+                Number(
+                  item.progressPercent ||
+                  0
+                ),
+              0
+            ) / total
+          )
+        : 0;
+
+    document
+      .getElementById(
+        "prudleJoinedCount"
+      )
+      .textContent = total;
+
+    document
+      .getElementById(
+        "prudlePlayingCount"
+      )
+      .textContent = playing;
+
+    document
+      .getElementById(
+        "prudleCompletedCount"
+      )
+      .textContent = completed;
+
+    document
+      .getElementById(
+        "prudleAverageProgress"
+      )
+      .textContent =
+        average + "%";
+
+    const grid =
+      document.getElementById(
+        "prudleParticipantsGrid"
+      );
+
+    if(!rows.length){
+
+      grid.innerHTML = `
+        <div class="empty">
+          Waiting for students to enter the activity...
+        </div>
+      `;
+
+      return;
+    }
+
+    rows.sort(
+      (a,b)=>
+        Number(
+          b.correct ||
+          0
+        ) -
+        Number(
+          a.correct ||
+          0
+        ) ||
+        Number(
+          b.progressPercent ||
+          0
+        ) -
+        Number(
+          a.progressPercent ||
+          0
+        ) ||
+        safeValue(
+          a.studentName
+        ).localeCompare(
+          safeValue(
+            b.studentName
+          )
+        )
+    );
+
+    grid.innerHTML =
+      rows.map(item=>{
+
+        const progress =
+          Math.max(
+            0,
+            Math.min(
+              100,
+              Number(
+                item.progressPercent ||
+                0
+              )
+            )
+          );
+
+        const isCompleted =
+          item.status ===
+          "completed";
+
+        return `
+          <article class="
+            prudle-participant-card
+            ${
+              isCompleted
+                ? "completed"
+                : ""
+            }
+          ">
+
+            <div class="prudle-participant-top">
+
+              <div class="prudle-participant-name">
+                ${esc(
+                  item.studentName ||
+                  "Student"
+                )}
+              </div>
+
+              <span class="prudle-participant-status">
+                ${
+                  isCompleted
+                    ? "Completed"
+                    : "Answering"
+                }
+              </span>
+
+            </div>
+
+            <div class="prudle-progress-track">
+              <div
+                class="prudle-progress-fill"
+                style="width:${progress}%">
+              </div>
+            </div>
+
+            <div class="prudle-participant-meta">
+
+              <div>
+                <small>Answered</small>
+                <b>
+                  ${Number(
+                    item.answered ||
+                    0
+                  )}
+                  /
+                  ${Number(
+                    item.totalQuestions ||
+                    activeSessionData
+                      ?.totalQuestions ||
+                    0
+                  )}
+                </b>
+              </div>
+
+              <div>
+                <small>Correct</small>
+                <b>
+                  ${Number(
+                    item.correct ||
+                    0
+                  )}
+                </b>
+              </div>
+
+              <div>
+                <small>Progress</small>
+                <b>
+                  ${Number(
+                    item.scorePercent ||
+                    0
+                  )}%
+                </b>
+              </div>
+
+            </div>
+
+          </article>
+        `;
+      }).join("");
+  }
+
+  window.refreshPrudleLiveMonitor =
+    function(){
+      subscribeToParticipants();
+    };
+
+  window.endPrudleIndividualSession =
+    async function(){
+
+      if(!activeSessionId){
+        return;
+      }
+
+      if(
+        !confirm(
+          "End this Individual activity and remove it from student panels?"
+        )
+      ){
+        return;
+      }
+
+      try{
+
+        await db
+          .collection(
+            LIVE_SESSIONS_COLLECTION
+          )
+          .doc(
+            activeSessionId
+          )
+          .update({
+
+            status:"ended",
+
+            endedAt:
+              firebase
+                .firestore
+                .FieldValue
+                .serverTimestamp(),
+
+            updatedAt:
+              firebase
+                .firestore
+                .FieldValue
+                .serverTimestamp()
+          });
+
+        if(participantsUnsubscribe){
+
+          participantsUnsubscribe();
+          participantsUnsubscribe = null;
+        }
+
+        activeSessionId = "";
+        activeSessionData = null;
+
+        document
+          .getElementById(
+            "prudleLiveMonitor"
+          )
+          .classList
+          .add("hidden");
+
+        document
+          .getElementById(
+            "studentStart"
+          )
+          ?.classList
+          .remove("hidden");
+
+        loadStudentActivities();
+
+      }catch(error){
+
+        console.error(error);
+
+        alert(
+          "Unable to end the Individual activity."
+        );
+      }
+    };
+
+})();
+</script>
+
 </body>
 </html>
