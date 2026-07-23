@@ -9784,32 +9784,31 @@ window.addEventListener(
     return String(value ?? "").trim();
   }
 
-  function getSelectedCourseForMode(activity){
+  function getSelectedCourseForMode(){
 
     const selectedId =
-      document
-        .getElementById(
-          "trainerTargetCourse"
-        )
-        ?.value ||
-      "";
+      safeValue(
+        document
+          .getElementById(
+            "trainerTargetCourse"
+          )
+          ?.value ||
+        ""
+      );
+
+    /*
+      Individual mode requires an explicit course selection.
+      Do not fall back to the activity's original course.
+    */
+    if(!selectedId){
+      return null;
+    }
 
     return (
       OPEN_COURSES_CACHE.find(
         course=>
-          course.id === selectedId
-      ) ||
-      (
-        typeof getSelectedTargetCourse ===
-        "function"
-          ? getSelectedTargetCourse(activity)
-          : null
-      ) ||
-      (
-        typeof findCourseForActivity ===
-        "function"
-          ? findCourseForActivity(activity)
-          : null
+          safeValue(course.id) ===
+          selectedId
       ) ||
       null
     );
@@ -9858,12 +9857,7 @@ window.addEventListener(
       }
 
       const course =
-        OPEN_COURSES_CACHE.find(
-          item=>item.id === courseId
-        ) ||
-        getSelectedCourseForMode(
-          activity
-        );
+        getSelectedCourseForMode();
 
       if(!course){
         alert(
