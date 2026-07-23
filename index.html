@@ -9508,6 +9508,72 @@ window.addEventListener(
   color:var(--text);
 }
 
+
+/* Individual visibility switch */
+.prudle-mode-card.individual{
+  border-color:#f0a39b;
+  background:linear-gradient(135deg,#fff3f1,#fff);
+}
+
+.prudle-mode-card.individual .prudle-mode-icon{
+  background:#ffe7e3;
+  color:var(--red);
+}
+
+.prudle-mode-card.individual .individual-state-btn{
+  background:var(--red);
+  color:#fff;
+}
+
+.prudle-mode-card.individual.is-opening{
+  border-color:#7ad1af;
+  background:linear-gradient(135deg,#eafaf4,#fff);
+}
+
+.prudle-mode-card.individual.is-opening .prudle-mode-icon{
+  background:#dff7ed;
+  color:var(--green);
+}
+
+.prudle-mode-card.individual.is-opening .individual-state-btn{
+  background:var(--green);
+  color:#fff;
+}
+
+.prudle-student-access-toggle{
+  min-width:220px;
+  color:#fff;
+}
+
+.prudle-student-access-toggle.is-open{
+  background:var(--green);
+}
+
+.prudle-student-access-toggle.is-closed{
+  background:var(--red);
+}
+
+.prudle-live-access-note{
+  width:100%;
+  margin-top:10px;
+  padding:10px 13px;
+  border-radius:13px;
+  font-size:13px;
+  font-weight:900;
+}
+
+.prudle-live-access-note.is-open{
+  background:#e8faf2;
+  color:#08744f;
+  border:1px solid #a8dfc9;
+}
+
+.prudle-live-access-note.is-closed{
+  background:#fff0ee;
+  color:#b63124;
+  border:1px solid #efb0aa;
+}
+
 @media(max-width:700px){
   .prudle-mode-grid{
     grid-template-columns:1fr;
@@ -9552,6 +9618,7 @@ window.addEventListener(
       </button>
 
       <button
+        id="prudleIndividualModeCard"
         class="prudle-mode-card individual"
         type="button"
         onclick="startPrudleIndividualMode()">
@@ -9561,12 +9628,15 @@ window.addEventListener(
         <h3>Individual (Using Mobile)</h3>
 
         <p>
-          Open the activity for students registered in the selected
-          course. The trainer screen changes into a live progress monitor.
+          Red means the activity is hidden from students.
+          Click to open it for students and display the live progress monitor.
         </p>
 
-        <span class="btn btn-success">
-          Open for Students
+        <span
+          id="prudleIndividualModeState"
+          class="btn individual-state-btn">
+          <i class="fa-solid fa-lock"></i>
+          Closed for Students
         </span>
       </button>
 
@@ -9608,6 +9678,16 @@ window.addEventListener(
     <div class="actions">
 
       <button
+        id="prudleStudentAccessToggle"
+        class="btn prudle-student-access-toggle is-open"
+        type="button"
+        onclick="togglePrudleStudentAccess()">
+
+        <i class="fa-solid fa-lock-open"></i>
+        Open for Students
+      </button>
+
+      <button
         class="btn btn-light"
         type="button"
         onclick="refreshPrudleLiveMonitor()">
@@ -9625,6 +9705,12 @@ window.addEventListener(
         End Individual Activity
       </button>
 
+    </div>
+
+    <div
+      id="prudleLiveAccessNote"
+      class="prudle-live-access-note is-open">
+      Students can currently see and enter this activity.
     </div>
 
   </div>
@@ -9687,6 +9773,7 @@ window.addEventListener(
 
   let activeSessionId = "";
   let activeSessionData = null;
+  let studentsCanAccess = false;
 
   let participantsUnsubscribe = null;
 
@@ -9790,6 +9877,27 @@ window.addEventListener(
 
       pendingCourseId =
         course.id;
+
+      const individualCard =
+        document.getElementById(
+          "prudleIndividualModeCard"
+        );
+
+      const individualState =
+        document.getElementById(
+          "prudleIndividualModeState"
+        );
+
+      individualCard?.classList.remove(
+        "is-opening"
+      );
+
+      if(individualState){
+        individualState.innerHTML = `
+          <i class="fa-solid fa-lock"></i>
+          Closed for Students
+        `;
+      }
 
       document
         .getElementById(
@@ -9948,7 +10056,26 @@ window.addEventListener(
       const username =
         getLoginUsername();
 
-      closePrudleActivityModeModal();
+      const individualCard =
+        document.getElementById(
+          "prudleIndividualModeCard"
+        );
+
+      const individualState =
+        document.getElementById(
+          "prudleIndividualModeState"
+        );
+
+      individualCard?.classList.add(
+        "is-opening"
+      );
+
+      if(individualState){
+        individualState.innerHTML = `
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          Opening for Students
+        `;
+      }
 
       try{
 
@@ -9966,6 +10093,7 @@ window.addEventListener(
 
               mode:"individual",
               status:"active",
+              studentVisible:true,
 
               activityId:
                 activity.id,
@@ -10056,18 +10184,169 @@ window.addEventListener(
             ),
 
           totalQuestions:
-            activity.questions.length
+            activity.questions.length,
+
+          status:"active"
         };
 
+        studentsCanAccess = true;
+
+        closePrudleActivityModeModal();
         openLiveMonitor();
+        updatePrudleStudentAccessUI();
+
+      }catch(error){
+
+        console.error(error);
+
+        individualCard?.classList.remove(
+          "is-opening"
+        );
+
+        if(individualState){
+          individualState.innerHTML = `
+            <i class="fa-solid fa-lock"></i>
+            Closed for Students
+          `;
+        }
+
+        alert(
+          "Unable to start Individual mode. Check Firebase permissions."
+        );
+      }
+    };
+
+  function updatePrudleStudentAccessUI(){
+
+    const button =
+      document.getElementById(
+        "prudleStudentAccessToggle"
+      );
+
+    const note =
+      document.getElementById(
+        "prudleLiveAccessNote"
+      );
+
+    if(button){
+
+      button.classList.toggle(
+        "is-open",
+        studentsCanAccess
+      );
+
+      button.classList.toggle(
+        "is-closed",
+        !studentsCanAccess
+      );
+
+      button.innerHTML =
+        studentsCanAccess
+          ? `
+              <i class="fa-solid fa-lock-open"></i>
+              Open for Students
+            `
+          : `
+              <i class="fa-solid fa-lock"></i>
+              Closed for Students
+            `;
+    }
+
+    if(note){
+
+      note.classList.toggle(
+        "is-open",
+        studentsCanAccess
+      );
+
+      note.classList.toggle(
+        "is-closed",
+        !studentsCanAccess
+      );
+
+      note.textContent =
+        studentsCanAccess
+          ? "Students can currently see and enter this activity."
+          : "Students cannot currently see or enter this activity. The live report remains available.";
+    }
+  }
+
+  window.togglePrudleStudentAccess =
+    async function(){
+
+      if(!activeSessionId){
+        return;
+      }
+
+      const nextOpen =
+        !studentsCanAccess;
+
+      const button =
+        document.getElementById(
+          "prudleStudentAccessToggle"
+        );
+
+      if(button){
+        button.disabled = true;
+        button.innerHTML = `
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          Updating...
+        `;
+      }
+
+      try{
+
+        await db
+          .collection(
+            LIVE_SESSIONS_COLLECTION
+          )
+          .doc(
+            activeSessionId
+          )
+          .update({
+
+            status:
+              nextOpen
+                ? "active"
+                : "paused",
+
+            studentVisible:
+              nextOpen,
+
+            updatedAt:
+              firebase
+                .firestore
+                .FieldValue
+                .serverTimestamp()
+          });
+
+        studentsCanAccess =
+          nextOpen;
+
+        if(activeSessionData){
+          activeSessionData.status =
+            nextOpen
+              ? "active"
+              : "paused";
+        }
+
+        updatePrudleStudentAccessUI();
 
       }catch(error){
 
         console.error(error);
 
         alert(
-          "Unable to start Individual mode. Check Firebase permissions."
+          "Unable to change student access."
         );
+
+        updatePrudleStudentAccessUI();
+
+      }finally{
+
+        if(button){
+          button.disabled = false;
+        }
       }
     };
 
@@ -10408,6 +10687,7 @@ window.addEventListener(
           .update({
 
             status:"ended",
+            studentVisible:false,
 
             endedAt:
               firebase
@@ -10430,6 +10710,7 @@ window.addEventListener(
 
         activeSessionId = "";
         activeSessionData = null;
+        studentsCanAccess = false;
 
         document
           .getElementById(
