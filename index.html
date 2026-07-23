@@ -9856,21 +9856,21 @@ window.addEventListener(
         return;
       }
 
+      /*
+        Opening the mode selector does not require a course.
+        Teams may run with or without a selected course.
+        Individual validates the course only when its button is pressed.
+      */
       const course =
         getSelectedCourseForMode();
-
-      if(!course){
-        alert(
-          "Select the course that will use this activity first."
-        );
-        return;
-      }
 
       pendingActivityId =
         activityId;
 
       pendingCourseId =
-        course.id;
+        course
+          ? course.id
+          : safeValue(courseId);
 
       const individualCard =
         document.getElementById(
@@ -10014,17 +10014,33 @@ window.addEventListener(
             pendingActivityId
         ) || null;
 
-      const course =
-        OPEN_COURSES_CACHE.find(
-          item=>
-            item.id ===
-            pendingCourseId
-        ) || null;
+      /*
+        Individual mode must use an explicitly selected course.
+        Read the selector again here so a previously supplied activity
+        course cannot bypass the requirement.
+      */
+      const selectedCourse =
+        getSelectedCourseForMode();
 
-      if(!activity || !course){
+      if(!selectedCourse){
 
         alert(
-          "Unable to find the activity or course."
+          "Select a course before starting Individual mode."
+        );
+
+        return;
+      }
+
+      pendingCourseId =
+        selectedCourse.id;
+
+      const course =
+        selectedCourse;
+
+      if(!activity){
+
+        alert(
+          "Unable to find the activity."
         );
 
         return;
