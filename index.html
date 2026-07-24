@@ -5523,7 +5523,7 @@ function stopBombTimer(){
 
   if(BOMB_TIMER_INTERVAL){
 
-    clearInterval(
+    clearTimeout(
       BOMB_TIMER_INTERVAL
     );
 
@@ -5776,9 +5776,19 @@ function updateBombVisuals(){
 
   if(speedValue){
 
+    const milliseconds =
+      Math.max(
+        180,
+        Math.round(
+          1000 / speed
+        )
+      );
+
     speedValue.textContent =
       speed.toFixed(2) +
-      "×";
+      "× · " +
+      milliseconds +
+      " ms";
   }
 
   stage.classList.remove(
@@ -5855,42 +5865,72 @@ function startBombTimer(){
 
   updateBombVisuals();
 
-  BOMB_TIMER_INTERVAL =
-    setInterval(()=>{
+  function scheduleNextBombTick(){
 
-      if(
-        !BOMB_ACTIVE ||
-        ANSWER_LOCKED ||
-        ACTIVITY_FINISHED
-      ){
-        return;
-      }
+    if(
+      !BOMB_ACTIVE ||
+      ANSWER_LOCKED ||
+      ACTIVITY_FINISHED
+    ){
+      return;
+    }
 
-      const currentTeam =
-        getCurrentTeam();
+    const currentTeam =
+      getCurrentTeam();
 
-      const speed =
-        getTeamBombSpeed(
-          currentTeam
-        );
+    const speed =
+      getTeamBombSpeed(
+        currentTeam
+      );
 
-      BOMB_TIME_LEFT =
-        Math.max(
-          0,
-          BOMB_TIME_LEFT -
-          speed
-        );
+    /*
+      Real acceleration:
+      The counter always moves one number at a time:
+      30, 29, 28, 27...
+      Speed changes by shortening the delay between numbers.
+      It never skips numbers.
+    */
+    const tickDelay =
+      Math.max(
+        180,
+        Math.round(
+          1000 / speed
+        )
+      );
 
-      updateBombVisuals();
+    BOMB_TIMER_INTERVAL =
+      setTimeout(()=>{
 
-      if(
-        BOMB_TIME_LEFT <= 0
-      ){
+        if(
+          !BOMB_ACTIVE ||
+          ANSWER_LOCKED ||
+          ACTIVITY_FINISHED
+        ){
+          return;
+        }
 
-        explodeBombByTimeout();
-      }
+        BOMB_TIME_LEFT =
+          Math.max(
+            0,
+            BOMB_TIME_LEFT - 1
+          );
 
-    },1000);
+        updateBombVisuals();
+
+        if(
+          BOMB_TIME_LEFT <= 0
+        ){
+
+          explodeBombByTimeout();
+          return;
+        }
+
+        scheduleNextBombTick();
+
+      },tickDelay);
+  }
+
+  scheduleNextBombTick();
 }
 
 function addBombSpark(){
@@ -6226,44 +6266,22 @@ function moveToNextBombQuestion(){
     CURRENT_ACTIVITY?.questions ||
     [];
 
-  if(!questions.length){
+  stopBombTimer();
+
+  CURRENT_QUESTION_INDEX++;
+
+  /*
+    Continue through the original activity questions in order.
+    No modulo and no return to an earlier question.
+  */
+  if(
+    CURRENT_QUESTION_INDEX >=
+    questions.length
+  ){
+
     finishActivity(false);
     return;
   }
-
-  let nextIndex =
-    CURRENT_QUESTION_INDEX;
-
-  for(
-    let step = 1;
-    step <= questions.length;
-    step++
-  ){
-
-    const candidate =
-      (
-        CURRENT_QUESTION_INDEX +
-        step
-      ) %
-      questions.length;
-
-    const type =
-      String(
-        questions[candidate]
-          ?.type ||
-        ""
-      )
-      .trim()
-      .toLowerCase();
-
-    if(type === "bomb"){
-      nextIndex = candidate;
-      break;
-    }
-  }
-
-  CURRENT_QUESTION_INDEX =
-    nextIndex;
 
   ANSWER_LOCKED = false;
 
@@ -6667,9 +6685,9 @@ function chooseBombAnswer(
       `⚠️ Wrong answer! ${
         team?.name ||
         "The team"
-      }'s countdown speed increased to ${
+      }'s countdown is now ${
         newSpeed.toFixed(2)
-      }×.`;
+      }× faster. The numbers still count down one by one.`;
 
     feedback.className =
       "feedback bad";
