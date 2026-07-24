@@ -5098,6 +5098,46 @@ function updateActivityTimerDisplay(){
   /*
     تغيير لون المؤقت حسب الوقت المتبقي.
   */
+  const bombLocalDisplay =
+    document.getElementById(
+      "bombLocalDisplay"
+    );
+
+  if(bombLocalDisplay){
+
+    const bombMinutes =
+      Math.floor(safe / 60);
+
+    const bombSeconds =
+      safe % 60;
+
+    bombLocalDisplay.textContent =
+      String(bombMinutes)
+        .padStart(2,"0") +
+      ":" +
+      String(bombSeconds)
+        .padStart(2,"0");
+
+    if(safe <= 10){
+
+      bombLocalDisplay.style.color =
+        "#ff1744";
+
+      bombLocalDisplay.style.background =
+        "#3a0000";
+
+    }else{
+
+      bombLocalDisplay.style.color =
+        "#ff5252";
+
+      bombLocalDisplay.style.background =
+        "#260606";
+
+    }
+
+  }
+
   if(safe <= 10){
 
     display.style.background =
@@ -5358,8 +5398,11 @@ function updateBombAfterAnswer(isCorrect){
     }
 
     setTimeout(()=>{
-      stage.classList.remove("bomb-exploded");
-    },650);
+      stage.classList.remove(
+        "bomb-exploded",
+        "bomb-danger"
+      );
+    },900);
   }
 }
 
@@ -5584,6 +5627,26 @@ function renderStudentQuestion(){
     );
 
   answersBox.innerHTML = "";
+
+  /*
+    Bomb Defuse must be rendered before the normal question types.
+    Otherwise it appears as a regular Multiple Choice question.
+  */
+  if(type === "bomb"){
+
+    document
+      .getElementById("gameQuestion")
+      .textContent =
+        question.text ||
+        "Answer correctly to cut a wire and defuse the bomb!";
+
+    renderBombDevice(
+      question,
+      answersBox
+    );
+
+    return;
+  }
 
   if(type === "match"){
     renderMatchQuestion(
@@ -7723,6 +7786,9 @@ function chooseAnswer(answerIndex,clickedButton){
     document.getElementById(
       "feedback"
     );
+
+  feedback.className =
+    "feedback";
 
   buttons.forEach((button,index)=>{
     button.disabled = true;
