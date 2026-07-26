@@ -8612,6 +8612,16 @@ function chooseBalloonAnswer(
 
   }
 
+  /*
+    تسجيل الإجابة للفريق الحالي حتى يتم تحديث:
+    - عدد الإجابات الصحيحة
+    - عدد الأسئلة المجابة
+    - سباق الفرق عند تفعيله
+  */
+  recordCurrentTeamAnswer(
+    Boolean(selected?.correct)
+  );
+
   document
     .getElementById(
       "scorePill"
@@ -9069,6 +9079,16 @@ function chooseMysteryAnswer(
     playWrongSound();
 
   }
+
+  /*
+    تسجيل الإجابة للفريق الحالي حتى يتم تحديث:
+    - عدد الإجابات الصحيحة
+    - عدد الأسئلة المجابة
+    - سباق الفرق عند تفعيله
+  */
+  recordCurrentTeamAnswer(
+    Boolean(selected?.correct)
+  );
 
   document
     .getElementById(
