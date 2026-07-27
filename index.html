@@ -10194,16 +10194,62 @@ async function finishActivity(
     "hidden"
   );
 
+  /*
+    Final activity totals must represent all answers actually given
+    by all teams/participants, including Bomb Defuse and every other mode.
+  */
+  const rankedTeamsForTotals =
+    getRankedTeams();
+
+  const totalCorrectAnswers =
+    rankedTeamsForTotals.reduce(
+      (sum,team)=>
+        sum +
+        Math.max(
+          0,
+          Number(team.correct) || 0
+        ),
+      0
+    );
+
+  const totalAnswered =
+    rankedTeamsForTotals.reduce(
+      (sum,team)=>
+        sum +
+        Math.max(
+          0,
+          Number(team.answered) || 0
+        ),
+      0
+    );
+
+  /*
+    Fallback is kept for any old/single-player activity
+    that does not have team counters.
+  */
+  const finalCorrect =
+    rankedTeamsForTotals.length
+      ? totalCorrectAnswers
+      : Math.max(
+          0,
+          Number(CURRENT_SCORE) || 0
+        );
+
   const total =
-    CURRENT_ACTIVITY
-      ?.questions
-      ?.length || 0;
+    rankedTeamsForTotals.length
+      ? totalAnswered
+      : (
+          CURRENT_ACTIVITY
+            ?.questions
+            ?.length ||
+          0
+        );
 
   const percent =
     total > 0
       ? Math.round(
           (
-            CURRENT_SCORE /
+            finalCorrect /
             total
           ) * 100
         )
@@ -10240,7 +10286,7 @@ async function finishActivity(
   document
     .getElementById("finalScore")
     .textContent =
-      `${CURRENT_SCORE} / ${total}`;
+      `${finalCorrect} / ${total}`;
 
   document
     .getElementById("finalPercent")
@@ -10432,9 +10478,15 @@ async function finishActivity(
           "General",
 
         score:
-          CURRENT_SCORE,
+          finalCorrect,
 
         total,
+        totalAnswered:
+          total,
+
+        totalCorrectAnswers:
+          finalCorrect,
+
         percent,
 
         teamMode:true,
@@ -10522,8 +10574,10 @@ async function finishActivity(
     await updateActivityUsage(
       "completed",
       {
-        score:CURRENT_SCORE,
+        score:finalCorrect,
         total,
+        totalAnswered:total,
+        totalCorrectAnswers:finalCorrect,
         percent,
 
         teamMode:true,
