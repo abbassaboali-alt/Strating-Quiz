@@ -5166,58 +5166,99 @@ function renderTeamResults(){
   if(!TEAMS.length){
     box.classList.add("hidden");
     ranking.innerHTML = "";
-    return null;
+
+    return {
+      winner:null,
+      winners:[],
+      ranked:[]
+    };
   }
 
   const ranked =
     getRankedTeams();
 
-  const winner =
+  const firstTeam =
     ranked[0] || null;
+
+  /*
+    جميع الفرق المتعادلة مع أفضل فريق تُعد فائزة.
+    في Race Mode تتم المقارنة أولاً بمسافة السباق،
+    ثم عدد الإجابات الصحيحة والدقة وعدد الإجابات.
+  */
+  const winners = firstTeam
+    ? ranked.filter(team=>
+        (
+          !RACE_MODE_ACTIVE ||
+          Number(team.racePosition || 0) ===
+          Number(firstTeam.racePosition || 0)
+        ) &&
+        Number(team.correct || 0) ===
+        Number(firstTeam.correct || 0) &&
+        Number(team.accuracy || 0) ===
+        Number(firstTeam.accuracy || 0) &&
+        Number(team.answered || 0) ===
+        Number(firstTeam.answered || 0)
+      )
+    : [];
+
+  const winnerIds =
+    new Set(
+      winners.map(team=>team.id)
+    );
 
   box.classList.remove("hidden");
 
   ranking.innerHTML =
-    ranked.map((team,index)=>`
-      <div class="
-        team-rank-row
-        ${index === 0 ? "winner" : ""}
-      ">
-        <div class="team-rank-number">
-          ${
-            index === 0
-              ? "🏆"
-              : index + 1
-          }
-        </div>
+    ranked.map((team,index)=>{
 
-        <div class="team-rank-name">
-          ${esc(team.name)}
-        </div>
+      const isWinner =
+        winnerIds.has(team.id);
 
-        <div class="team-rank-score">
-          ${
-            RACE_MODE_ACTIVE
-              ? `🏁 ${
-                  Number(
-                    team.racePosition ||
-                    0
-                  )
-                }/${RACE_TOTAL_STEPS}`
-              : `${team.correct} Correct`
-          }
-        </div>
+      return `
+        <div class="
+          team-rank-row
+          ${isWinner ? "winner" : ""}
+        ">
+          <div class="team-rank-number">
+            ${
+              isWinner
+                ? "🏆"
+                : index + 1
+            }
+          </div>
 
-        <div class="team-rank-accuracy">
-          ${team.accuracy}%
-          • Answered ${team.answered}/${team.assigned}
-        </div>
-      </div>
-    `).join("");
+          <div class="team-rank-name">
+            ${esc(team.name)}
+          </div>
 
-  return winner;
+          <div class="team-rank-score">
+            ${
+              RACE_MODE_ACTIVE
+                ? `🏁 ${
+                    Number(
+                      team.racePosition ||
+                      0
+                    )
+                  }/${RACE_TOTAL_STEPS}`
+                : `${team.correct} Correct`
+            }
+          </div>
+
+          <div class="team-rank-accuracy">
+            ${team.accuracy}%
+            • Answered ${team.answered}/${team.assigned}
+          </div>
+        </div>
+      `;
+
+    }).join("");
+
+  return {
+    winner:firstTeam,
+    winners,
+    ranked
+  };
 }
-
 function startActivity(activityId,courseId){
   stopActivityTimer();
 
@@ -10110,10 +10151,14 @@ async function finishActivity(
   const bombWinner =
     getBombWinner();
 
+  const teamResult =
+    renderTeamResults();
+
   const winningTeam =
-    renderTeamResults(
-      bombWinner
-    );
+    teamResult.winner;
+
+  const winningTeams =
+    teamResult.winners;
 
   document
     .getElementById("progressBar")
@@ -10162,17 +10207,27 @@ async function finishActivity(
 
   if(winningTeam){
 
+    const winnerNames =
+      winningTeams
+        .map(team=>team.name)
+        .join(" & ");
+
+    const winnerLabel =
+      winningTeams.length > 1
+        ? "Winners"
+        : "Winner";
+
     message =
       RACE_MODE_ACTIVE
         ? (
-            `🏁 Race Winner: ${winningTeam.name} — ` +
+            `🏁 Race ${winnerLabel}: ${winnerNames} — ` +
             `${Number(
               winningTeam.racePosition ||
               0
             )}/${RACE_TOTAL_STEPS} steps`
           )
         : (
-            `🏆 Winning Team: ${winningTeam.name} — ` +
+            `🏆 ${winnerLabel}: ${winnerNames} — ` +
             `${winningTeam.correct} correct answers`
           );
 
@@ -10341,6 +10396,21 @@ async function finishActivity(
 
         winningTeamName:
           winningTeam?.name || "",
+
+        winningTeamNames:
+          winningTeams.map(team=>team.name),
+
+        isWinningTie:
+          winningTeams.length > 1,
+
+        winningTeamNames:
+          winningTeams.map(team=>team.name),
+
+        winningTeamIds:
+          winningTeams.map(team=>team.id),
+
+        isWinningTie:
+          winningTeams.length > 1,
 
         winningTeamCorrect:
           Number(
