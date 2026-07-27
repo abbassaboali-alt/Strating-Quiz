@@ -5557,8 +5557,31 @@ let BOMB_TIME_LEFT = 0;
 let BOMB_LAST_TICK = null;
 let BOMB_ACTIVE = false;
 let BOMB_WINNER_TEAM_ID = "";
-const BOMB_SPEED_STEP = 0.85;
-const BOMB_MAX_SPEED = 7;
+/*
+  Bomb speed for each number of wrong answers:
+  0 = 1.00x
+  1 = 1.85x
+  2 = 2.70x
+  3 = 3.55x
+  4 = 4.40x
+  5 = 5.25x
+  6 = 6.10x
+  7 = 7.00x
+  8 = 8.00x
+  9 or more = 10.00x
+*/
+const BOMB_SPEED_LEVELS = [
+  1.00,
+  1.85,
+  2.70,
+  3.55,
+  4.40,
+  5.25,
+  6.10,
+  7.00,
+  8.00,
+  10.00
+];
 
 function stopBombTimer(){
 
@@ -6194,40 +6217,71 @@ function advanceBombTeam(){
     activeTeams.length;
 }
 
+function getBombSpeedByMistakes(
+  mistakes
+){
+
+  const safeMistakes =
+    Math.max(
+      0,
+      Math.floor(
+        Number(mistakes) ||
+        0
+      )
+    );
+
+  const speedIndex =
+    Math.min(
+      safeMistakes,
+      BOMB_SPEED_LEVELS.length - 1
+    );
+
+  return BOMB_SPEED_LEVELS[
+    speedIndex
+  ];
+}
+
 function getTeamBombSpeed(team){
 
-  return Math.min(
-    BOMB_MAX_SPEED,
-    Math.max(
-      1,
-      Number(
-        team?.bombSpeed ||
-        1
-      )
-    )
-  );
+  if(!team){
+    return BOMB_SPEED_LEVELS[0];
+  }
+
+  const mistakes =
+    Number(
+      team.bombMistakes ||
+      0
+    );
+
+  const calculatedSpeed =
+    getBombSpeedByMistakes(
+      mistakes
+    );
+
+  team.bombSpeed =
+    calculatedSpeed;
+
+  return calculatedSpeed;
 }
 
 function increaseTeamBombSpeed(team){
 
   if(!team){
-    return 1;
+    return BOMB_SPEED_LEVELS[0];
   }
 
   team.bombMistakes =
-    Number(
-      team.bombMistakes ||
-      0
+    Math.max(
+      0,
+      Number(
+        team.bombMistakes ||
+        0
+      )
     ) + 1;
 
   team.bombSpeed =
-    Math.min(
-      BOMB_MAX_SPEED,
-      1 +
-      (
-        team.bombMistakes *
-        BOMB_SPEED_STEP
-      )
+    getBombSpeedByMistakes(
+      team.bombMistakes
     );
 
   return team.bombSpeed;
