@@ -5557,8 +5557,8 @@ let BOMB_TIME_LEFT = 0;
 let BOMB_LAST_TICK = null;
 let BOMB_ACTIVE = false;
 let BOMB_WINNER_TEAM_ID = "";
-const BOMB_SPEED_STEP = 0.45;
-const BOMB_MAX_SPEED = 4;
+const BOMB_SPEED_STEP = 0.85;
+const BOMB_MAX_SPEED = 7;
 
 function stopBombTimer(){
 
@@ -5819,7 +5819,7 @@ function updateBombVisuals(){
 
     const milliseconds =
       Math.max(
-        180,
+        120,
         Math.round(
           1000 / speed
         )
@@ -5933,7 +5933,7 @@ function startBombTimer(){
     */
     const tickDelay =
       Math.max(
-        180,
+        120,
         Math.round(
           1000 / speed
         )
