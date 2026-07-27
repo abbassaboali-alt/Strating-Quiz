@@ -6161,12 +6161,11 @@ function explodeBombByTimeout(){
     return;
   }
 
-  setTimeout(()=>{
-
-    advanceBombTeam();
-    moveToNextBombQuestion();
-
-  },1500);
+  /*
+    With multiple teams, keep the explosion result visible.
+    The remaining team continues only after pressing Next Question.
+  */
+  showNextQuestionButton();
 }
 
 
@@ -6761,12 +6760,12 @@ function chooseBombAnswer(
     return;
   }
 
-  setTimeout(()=>{
-
-    advanceBombTeam();
-    moveToNextBombQuestion();
-
-  },correct ? 1200 : 1350);
+  /*
+    Do not move automatically after a Bomb answer.
+    Keep the result visible and wait for the trainer/student
+    to press the same Next Question button used by other types.
+  */
+  showNextQuestionButton();
 }
 
 function renderStudentQuestion(){
@@ -10068,6 +10067,14 @@ function nextQuestionManually(){
     )
     .trim()
     .toLowerCase();
+
+  /*
+    Bomb Defuse changes to the next active team only when
+    the Next Question button is pressed.
+  */
+  if(answeredType === "bomb"){
+    advanceBombTeam();
+  }
 
   CURRENT_QUESTION_INDEX++;
 
