@@ -2883,7 +2883,17 @@ button{font-family:inherit;cursor:pointer}
     <div class="actions" style="justify-content:center">
       <button class="btn btn-gold" type="button" onclick="restartGame()">
         <i class="fa-solid fa-rotate-right"></i>
-        Play Again
+        Play Again — Same Mode
+      </button>
+
+      <button class="btn btn-light" type="button" onclick="restartAsIndividual()">
+        <i class="fa-solid fa-user"></i>
+        Replay Individually
+      </button>
+
+      <button class="btn btn-light" type="button" onclick="restartAsGroup()">
+        <i class="fa-solid fa-people-group"></i>
+        Replay as Group
       </button>
 
       <button class="btn btn-primary" type="button" onclick="backToActivities()">
@@ -10693,6 +10703,56 @@ function restartGame(){
     top:0,
     behavior:"smooth"
   });
+}
+
+/*
+  إعادة النشاط بعد إكماله:
+  - فردي: يبدأ مباشرة بمشارك واحد.
+  - مجموعة: يعود إلى شاشة إعداد المجموعات لاختيار العدد والأسماء.
+  كل محاولة جديدة تُحفظ كسجل مستقل عند اختيار دورة.
+*/
+function restartAsIndividual(){
+  if(!CURRENT_ACTIVITY){
+    return;
+  }
+
+  prepareTeamSetup();
+
+  const select = document.getElementById("teamCountSelect");
+  if(select){
+    select.value = "1";
+  }
+
+  renderTeamNameInputs();
+
+  const firstInput = document.querySelector(".team-name-input");
+  if(firstInput){
+    const actor = getActorData();
+    firstInput.value =
+      String(actor?.name || actor?.username || "Individual").trim() ||
+      "Individual";
+  }
+
+  confirmTeamSetup();
+}
+
+function restartAsGroup(){
+  if(!CURRENT_ACTIVITY){
+    return;
+  }
+
+  const previousCount = Math.max(2, Number(TEAM_COUNT || 2));
+
+  prepareTeamSetup();
+
+  const select = document.getElementById("teamCountSelect");
+  if(select){
+    select.value = String(Math.min(6, previousCount));
+  }
+
+  renderTeamNameInputs();
+
+  toast("Choose the number of groups and their names, then start again.");
 }
 
 async function backToActivities(){
