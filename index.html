@@ -11592,6 +11592,51 @@ window.addEventListener(
   border:1px solid #efb0aa;
 }
 
+/* =========================================
+   INDIVIDUAL RETAKE PERMISSIONS
+========================================= */
+.prudle-retake-all-btn{
+  background:#8b5cf6 !important;
+  color:#fff !important;
+}
+
+.prudle-participant-retake{
+  margin-top:11px;
+  display:flex;
+  gap:8px;
+}
+
+.prudle-participant-retake button{
+  width:100%;
+  border:0;
+  border-radius:11px;
+  padding:9px 11px;
+  font-family:inherit;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  background:#8b5cf6;
+  color:#fff;
+}
+
+.prudle-participant-retake button:disabled{
+  opacity:.65;
+  cursor:not-allowed;
+}
+
+.prudle-retake-allowed{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  margin-top:9px;
+  padding:6px 9px;
+  border-radius:999px;
+  background:#ede9fe;
+  color:#6d28d9;
+  font-size:11px;
+  font-weight:900;
+}
+
 @media(max-width:700px){
   .prudle-mode-grid{
     grid-template-columns:1fr;
@@ -11715,6 +11760,16 @@ window.addEventListener(
       </button>
 
       <button
+        id="prudleAllowGroupRetakeBtn"
+        class="btn prudle-retake-all-btn"
+        type="button"
+        onclick="allowPrudleGroupRetake()">
+
+        <i class="fa-solid fa-people-arrows"></i>
+        Allow Retake for Completed Group
+      </button>
+
+      <button
         class="btn btn-danger"
         type="button"
         onclick="endPrudleIndividualSession()">
@@ -11794,6 +11849,7 @@ window.addEventListener(
   let studentsCanAccess = false;
 
   let participantsUnsubscribe = null;
+  let latestParticipantRows = [];
 
   const originalStartActivity =
     window.startActivity;
@@ -12639,6 +12695,11 @@ window.addEventListener(
 
   function renderParticipants(rows){
 
+    latestParticipantRows =
+      Array.isArray(rows)
+        ? rows.map(item=>({...item}))
+        : [];
+
     const total =
       rows.length;
 
@@ -12835,10 +12896,217 @@ window.addEventListener(
 
             </div>
 
+            ${
+              isCompleted
+                ? (
+                    item.retakeAllowed === true
+                      ? `
+                          <div class="prudle-retake-allowed">
+                            <i class="fa-solid fa-rotate-right"></i>
+                            Retake Allowed
+                          </div>
+                        `
+                      : `
+                          <div class="prudle-participant-retake">
+                            <button
+                              type="button"
+                              onclick='allowPrudleStudentRetake(
+                                ${JSON.stringify(item.id)},
+                                ${JSON.stringify(item.studentName || "Student")}
+                              )'>
+                              <i class="fa-solid fa-rotate-right"></i>
+                              Allow This Student to Retake
+                            </button>
+                          </div>
+                        `
+                  )
+                : ""
+            }
+
           </article>
         `;
       }).join("");
   }
+
+
+  window.allowPrudleStudentRetake =
+    async function(
+      participantId,
+      studentName="Student"
+    ){
+
+      if(
+        !activeSessionId ||
+        !participantId
+      ){
+        return;
+      }
+
+      if(
+        !confirm(
+          `Allow ${studentName} to solve this activity again?`
+        )
+      ){
+        return;
+      }
+
+      try{
+
+        await db
+          .collection(
+            LIVE_SESSIONS_COLLECTION
+          )
+          .doc(activeSessionId)
+          .collection("participants")
+          .doc(participantId)
+          .set({
+            retakeAllowed:true,
+            retakeAllowedAt:
+              firebase
+                .firestore
+                .FieldValue
+                .serverTimestamp(),
+            retakeAllowedBy:
+              safeValue(
+                localStorage.getItem("username") ||
+                ""
+              ),
+            updatedAt:
+              firebase
+                .firestore
+                .FieldValue
+                .serverTimestamp()
+          },{
+            merge:true
+          });
+
+        alert(
+          `${studentName} can now solve the activity one more time.`
+        );
+
+      }catch(error){
+
+        console.error(error);
+
+        alert(
+          "Unable to allow the student to retake the activity."
+        );
+      }
+    };
+
+
+  window.allowPrudleGroupRetake =
+    async function(){
+
+      if(!activeSessionId){
+        return;
+      }
+
+      const completedRows =
+        latestParticipantRows.filter(
+          item=>
+            item.status === "completed" &&
+            item.retakeAllowed !== true
+        );
+
+      if(!completedRows.length){
+
+        alert(
+          "There are no completed students waiting for retake permission."
+        );
+
+        return;
+      }
+
+      if(
+        !confirm(
+          `Allow all ${completedRows.length} completed student(s) to solve this activity again?`
+        )
+      ){
+        return;
+      }
+
+      const button =
+        document.getElementById(
+          "prudleAllowGroupRetakeBtn"
+        );
+
+      if(button){
+        button.disabled = true;
+        button.innerHTML = `
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          Updating...
+        `;
+      }
+
+      try{
+
+        const batch =
+          db.batch();
+
+        completedRows.forEach(item=>{
+
+          const ref =
+            db
+              .collection(
+                LIVE_SESSIONS_COLLECTION
+              )
+              .doc(activeSessionId)
+              .collection("participants")
+              .doc(item.id);
+
+          batch.set(
+            ref,
+            {
+              retakeAllowed:true,
+              retakeAllowedAt:
+                firebase
+                  .firestore
+                  .FieldValue
+                  .serverTimestamp(),
+              retakeAllowedBy:
+                safeValue(
+                  localStorage.getItem("username") ||
+                  ""
+                ),
+              updatedAt:
+                firebase
+                  .firestore
+                  .FieldValue
+                  .serverTimestamp()
+            },
+            {
+              merge:true
+            }
+          );
+        });
+
+        await batch.commit();
+
+        alert(
+          "Retake permission was granted to all completed students."
+        );
+
+      }catch(error){
+
+        console.error(error);
+
+        alert(
+          "Unable to grant group retake permission."
+        );
+
+      }finally{
+
+        if(button){
+          button.disabled = false;
+          button.innerHTML = `
+            <i class="fa-solid fa-people-arrows"></i>
+            Allow Retake for Completed Group
+          `;
+        }
+      }
+    };
+
 
   window.refreshPrudleLiveMonitor =
     function(){
