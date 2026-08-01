@@ -11832,8 +11832,153 @@ window.addEventListener(
     );
   }
 
+
+  /*
+    Return the latest Individual session for the same activity/course.
+    Both "active" and "paused" sessions are retained so the open/closed
+    state survives refresh, logout and browser restart.
+  */
+  async function findSavedIndividualSession(
+    activityId,
+    courseId
+  ){
+    const snapshot =
+      await db
+        .collection(
+          LIVE_SESSIONS_COLLECTION
+        )
+        .get();
+
+    const matching =
+      snapshot.docs
+        .map(doc=>({
+          id:doc.id,
+          ref:doc.ref,
+          ...(doc.data() || {})
+        }))
+        .filter(item=>
+          safeValue(item.activityId) === safeValue(activityId) &&
+          safeValue(item.courseId) === safeValue(courseId) &&
+          item.mode === "individual" &&
+          (
+            item.status === "active" ||
+            item.status === "paused"
+          )
+        )
+        .sort((a,b)=>{
+          const getTime = value=>{
+            if(!value) return 0;
+            if(typeof value.toMillis === "function"){
+              return value.toMillis();
+            }
+            if(typeof value.seconds === "number"){
+              return value.seconds * 1000;
+            }
+            const parsed = new Date(value).getTime();
+            return Number.isFinite(parsed) ? parsed : 0;
+          };
+
+          return (
+            getTime(b.updatedAt || b.startedAt) -
+            getTime(a.updatedAt || a.startedAt)
+          );
+        });
+
+    return matching[0] || null;
+  }
+
+  function applyModeModalState(session){
+
+    const individualCard =
+      document.getElementById(
+        "prudleIndividualModeCard"
+      );
+
+    const individualState =
+      document.getElementById(
+        "prudleIndividualModeState"
+      );
+
+    const isOpen =
+      Boolean(
+        session &&
+        session.status === "active" &&
+        session.studentVisible !== false
+      );
+
+    individualCard?.classList.toggle(
+      "is-opening",
+      isOpen
+    );
+
+    if(!individualState){
+      return;
+    }
+
+    if(session){
+
+      individualState.innerHTML =
+        isOpen
+          ? `
+              <i class="fa-solid fa-lock-open"></i>
+              Open for Students
+            `
+          : `
+              <i class="fa-solid fa-lock"></i>
+              Closed for Students
+            `;
+
+      return;
+    }
+
+    individualState.innerHTML = `
+      <i class="fa-solid fa-lock"></i>
+      Closed for Students
+    `;
+  }
+
+  function setActiveSessionFromSaved(
+    session,
+    activity,
+    course
+  ){
+    activeSessionId =
+      session.id;
+
+    activeSessionData = {
+      ...session,
+      id:session.id,
+      activityId:
+        session.activityId ||
+        activity.id,
+      activityTitle:
+        session.activityTitle ||
+        activity.title ||
+        "Interactive Activity",
+      courseId:
+        session.courseId ||
+        course.id,
+      courseName:
+        session.courseName ||
+        getCourseName(course),
+      trainerName:
+        session.trainerName ||
+        getTrainer(course,activity),
+      totalQuestions:
+        Number(
+          session.totalQuestions ||
+          activity.questions?.length ||
+          0
+        )
+    };
+
+    studentsCanAccess =
+      session.status === "active" &&
+      session.studentVisible !== false;
+  }
+
   window.startActivity =
-    function(activityId,courseId){
+    async function(activityId,courseId){
 
       const role =
         String(
@@ -11874,11 +12019,6 @@ window.addEventListener(
         return;
       }
 
-      /*
-        Opening the mode selector does not require a course.
-        Teams may run with or without a selected course.
-        Individual validates the course only when its button is pressed.
-      */
       const course =
         getSelectedCourseForMode();
 
@@ -11890,26 +12030,30 @@ window.addEventListener(
           ? course.id
           : safeValue(courseId);
 
-      const individualCard =
-        document.getElementById(
-          "prudleIndividualModeCard"
-        );
+      /*
+        Read the last saved Individual state before showing the modal.
+        This prevents the button from returning to red after refresh/login.
+      */
+      let savedSession = null;
 
-      const individualState =
-        document.getElementById(
-          "prudleIndividualModeState"
-        );
-
-      individualCard?.classList.remove(
-        "is-opening"
-      );
-
-      if(individualState){
-        individualState.innerHTML = `
-          <i class="fa-solid fa-lock"></i>
-          Closed for Students
-        `;
+      if(course){
+        try{
+          savedSession =
+            await findSavedIndividualSession(
+              activity.id,
+              course.id
+            );
+        }catch(error){
+          console.error(
+            "Unable to read saved Individual state:",
+            error
+          );
+        }
       }
+
+      applyModeModalState(
+        savedSession
+      );
 
       document
         .getElementById(
@@ -12032,11 +12176,6 @@ window.addEventListener(
             pendingActivityId
         ) || null;
 
-      /*
-        Individual mode must use an explicitly selected course.
-        Read the selector again here so a previously supplied activity
-        course cannot bypass the requirement.
-      */
       const selectedCourse =
         getSelectedCourseForMode();
 
@@ -12094,24 +12233,43 @@ window.addEventListener(
           "prudleIndividualModeState"
         );
 
-      individualCard?.classList.add(
-        "is-opening"
-      );
-
       if(individualState){
         individualState.innerHTML = `
           <i class="fa-solid fa-spinner fa-spin"></i>
-          Opening for Students
+          Loading Saved State
         `;
       }
 
       try{
 
-        await closeExistingSessions(
-          activity.id,
-          course.id
-        );
+        /*
+          Resume the previous active/paused session instead of creating
+          a new session. Its studentVisible state remains unchanged.
+        */
+        const savedSession =
+          await findSavedIndividualSession(
+            activity.id,
+            course.id
+          );
 
+        if(savedSession){
+
+          setActiveSessionFromSaved(
+            savedSession,
+            activity,
+            course
+          );
+
+          closePrudleActivityModeModal();
+          openLiveMonitor();
+          updatePrudleStudentAccessUI();
+          return;
+        }
+
+        /*
+          No previous session exists: create the first session as open.
+          Any later open/closed change is saved on this same document.
+        */
         const sessionRef =
           await db
             .collection(
@@ -12214,7 +12372,8 @@ window.addEventListener(
           totalQuestions:
             activity.questions.length,
 
-          status:"active"
+          status:"active",
+          studentVisible:true
         };
 
         studentsCanAccess = true;
@@ -12231,12 +12390,7 @@ window.addEventListener(
           "is-opening"
         );
 
-        if(individualState){
-          individualState.innerHTML = `
-            <i class="fa-solid fa-lock"></i>
-            Closed for Students
-          `;
-        }
+        applyModeModalState(null);
 
         alert(
           "Unable to start Individual mode. Check Firebase permissions."
@@ -12356,6 +12510,9 @@ window.addEventListener(
             nextOpen
               ? "active"
               : "paused";
+
+          activeSessionData.studentVisible =
+            nextOpen;
         }
 
         updatePrudleStudentAccessUI();
