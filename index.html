@@ -2931,7 +2931,6 @@ let CURRENT_QUESTION_INDEX = 0;
 let CURRENT_SCORE = 0;
 let ANSWER_LOCKED = false;
 let CURRENT_ORDER_SELECTION = [];
-let ACTIVITY_ANSWER_LOG = [];
 
 /* Random Image Question state */
 let RANDOM_SPIN_INTERVAL = null;
@@ -4910,7 +4909,6 @@ function confirmTeamSetup(){
   ACTIVITY_FINISHED = false;
   ACTIVITY_TIME_LEFT = 0;
   CURRENT_ORDER_SELECTION = [];
-  ACTIVITY_ANSWER_LOG = [];
   CURRENT_USAGE_ID = "";
 
   document
@@ -5027,149 +5025,6 @@ function getCurrentTeam(){
   ];
 }
 
-function getStableQuestionId(question, index = CURRENT_QUESTION_INDEX){
-  return String(
-    question?.questionId ||
-    question?.id ||
-    question?.uid ||
-    `question-${Number(index) + 1}`
-  ).trim();
-}
-
-function getCorrectAnswerForLog(question){
-  if(!question) return "";
-
-  const type = String(question.type || "mcq").toLowerCase();
-  const answers = Array.isArray(question.answers) ? question.answers : [];
-
-  if(type === "order"){
-    return answers
-      .map(item=>String(item?.text || "").trim())
-      .filter(Boolean)
-      .join(" → ");
-  }
-
-  if(type === "match"){
-    return answers
-      .map(item=>{
-        const left = String(item?.text || "").trim();
-        const right = String(item?.right || item?.match || "").trim();
-        return right ? `${left} → ${right}` : left;
-      })
-      .filter(Boolean)
-      .join(" | ");
-  }
-
-  const correct = answers
-    .filter(item=>item?.correct === true)
-    .map(item=>String(item?.text || item?.right || "").trim())
-    .filter(Boolean);
-
-  return correct.join(" | ") ||
-    (type === "text" || type === "voice"
-      ? "Trainer evaluation"
-      : "Marked by the activity");
-}
-
-function getSelectedAnswerForLog(question){
-  const type = String(question?.type || "mcq").toLowerCase();
-
-  if(type === "order"){
-    return CURRENT_ORDER_SELECTION
-      .map(item=>String(item?.text || "").trim())
-      .filter(Boolean)
-      .join(" → ");
-  }
-
-  if(type === "match"){
-    const rows = [...document.querySelectorAll(".match-row")];
-    const values = rows.map(row=>{
-      const left = String(
-        row.querySelector(".match-left")?.textContent || ""
-      ).trim();
-      const selected = row.querySelector(
-        ".match-image-option.selected, .match-image-option.correct, .match-image-option.wrong"
-      );
-      const right = String(
-        selected?.dataset?.answerText ||
-        selected?.innerText ||
-        selected?.textContent ||
-        ""
-      ).trim();
-      return left && right ? `${left} → ${right}` : right;
-    }).filter(Boolean);
-
-    if(values.length) return values.join(" | ");
-  }
-
-  const selectedButton = document.querySelector(
-    ".student-answer.correct, .student-answer.wrong, " +
-    ".match-image-option.selected, .match-image-option.correct, .match-image-option.wrong, " +
-    ".balloon-option.correct, .balloon-option.wrong, " +
-    ".mystery-option.correct, .mystery-option.wrong"
-  );
-
-  if(selectedButton){
-    return String(
-      selectedButton.dataset?.answerText ||
-      selectedButton.innerText ||
-      selectedButton.textContent ||
-      ""
-    ).trim();
-  }
-
-  if(["random","wheel","balloon","mystery","bomb","text","voice"].includes(type)){
-    return "Marked by the trainer / game";
-  }
-
-  return "No answer recorded";
-}
-
-function captureTrainerAnswer(isCorrect){
-  const question = CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX];
-  if(!question) return;
-
-  const questionId = getStableQuestionId(
-    question,
-    CURRENT_QUESTION_INDEX
-  );
-
-  const team = getCurrentTeam();
-  const actor = getActorData();
-  const participantAnswer = getSelectedAnswerForLog(question);
-  const correctAnswer = getCorrectAnswerForLog(question);
-
-  const savedAnswer = {
-    questionId,
-    questionNumber:CURRENT_QUESTION_INDEX + 1,
-    type:String(question.type || "mcq"),
-    question:String(question.text || question.question || "Question").trim(),
-    questionText:String(question.text || question.question || "Question").trim(),
-    participantAnswer,
-    studentAnswer:participantAnswer,
-    selectedAnswer:participantAnswer,
-    correctAnswer,
-    expectedAnswer:correctAnswer,
-    correct:Boolean(isCorrect),
-    isCorrect:Boolean(isCorrect),
-    teamId:team?.id || "",
-    teamName:team?.name || "",
-    solvedByName:String(actor?.name || actor?.username || "Trainer").trim(),
-    solvedByRole:String(actor?.role || "trainer").trim()
-  };
-
-  const existingIndex = ACTIVITY_ANSWER_LOG.findIndex(item=>(
-    String(item?.questionId || "") === questionId &&
-    String(item?.teamId || "") === String(savedAnswer.teamId || "")
-  ));
-
-  if(existingIndex >= 0){
-    ACTIVITY_ANSWER_LOG[existingIndex] = savedAnswer;
-  }else{
-    ACTIVITY_ANSWER_LOG.push(savedAnswer);
-  }
-}
-
 function recordCurrentTeamAnswer(
   isCorrect,
   raceSteps = 1
@@ -5181,8 +5036,6 @@ function recordCurrentTeamAnswer(
   if(!team){
     return;
   }
-
-  captureTrainerAnswer(Boolean(isCorrect));
 
   team.answered++;
 
@@ -10721,18 +10574,6 @@ async function finishActivity(
         anonymous:
           getActorData().role === "guest",
 
-        answerLog: ACTIVITY_ANSWER_LOG.map(item=>({ ...item })),
-
-        questionAnswers: ACTIVITY_ANSWER_LOG.map(item=>({ ...item })),
-
-        questionsSnapshot: (CURRENT_ACTIVITY?.questions || []).map((question,index)=>({
-          questionId:getStableQuestionId(question,index),
-          questionNumber:index + 1,
-          type:String(question?.type || "mcq"),
-          question:String(question?.text || question?.question || "Question").trim(),
-          correctAnswer:getCorrectAnswerForLog(question)
-        })),
-
         createdAt:
           firebase
             .firestore
@@ -10770,9 +10611,6 @@ async function finishActivity(
           Number(
             winningTeam?.correct || 0
           ),
-
-        answerLog: ACTIVITY_ANSWER_LOG.map(item=>({ ...item })),
-        questionAnswers: ACTIVITY_ANSWER_LOG.map(item=>({ ...item })),
 
         finishedByTimeout:
           Boolean(finishedByTimeout),
@@ -10820,7 +10658,6 @@ function restartGame(){
   ACTIVITY_FINISHED = false;
   ACTIVITY_TIME_LEFT = 0;
   CURRENT_ORDER_SELECTION = [];
-  ACTIVITY_ANSWER_LOG = [];
 
   TEAMS = TEAMS.map(team=>({
     ...team,
@@ -11755,51 +11592,6 @@ window.addEventListener(
   border:1px solid #efb0aa;
 }
 
-/* =========================================
-   INDIVIDUAL RETAKE PERMISSIONS
-========================================= */
-.prudle-retake-all-btn{
-  background:#8b5cf6 !important;
-  color:#fff !important;
-}
-
-.prudle-participant-retake{
-  margin-top:11px;
-  display:flex;
-  gap:8px;
-}
-
-.prudle-participant-retake button{
-  width:100%;
-  border:0;
-  border-radius:11px;
-  padding:9px 11px;
-  font-family:inherit;
-  font-size:12px;
-  font-weight:900;
-  cursor:pointer;
-  background:#8b5cf6;
-  color:#fff;
-}
-
-.prudle-participant-retake button:disabled{
-  opacity:.65;
-  cursor:not-allowed;
-}
-
-.prudle-retake-allowed{
-  display:inline-flex;
-  align-items:center;
-  gap:5px;
-  margin-top:9px;
-  padding:6px 9px;
-  border-radius:999px;
-  background:#ede9fe;
-  color:#6d28d9;
-  font-size:11px;
-  font-weight:900;
-}
-
 @media(max-width:700px){
   .prudle-mode-grid{
     grid-template-columns:1fr;
@@ -11923,16 +11715,6 @@ window.addEventListener(
       </button>
 
       <button
-        id="prudleAllowGroupRetakeBtn"
-        class="btn prudle-retake-all-btn"
-        type="button"
-        onclick="allowPrudleGroupRetake()">
-
-        <i class="fa-solid fa-people-arrows"></i>
-        Allow Retake for Completed Group
-      </button>
-
-      <button
         class="btn btn-danger"
         type="button"
         onclick="endPrudleIndividualSession()">
@@ -12012,7 +11794,6 @@ window.addEventListener(
   let studentsCanAccess = false;
 
   let participantsUnsubscribe = null;
-  let latestParticipantRows = [];
 
   const originalStartActivity =
     window.startActivity;
@@ -12858,11 +12639,6 @@ window.addEventListener(
 
   function renderParticipants(rows){
 
-    latestParticipantRows =
-      Array.isArray(rows)
-        ? rows.map(item=>({...item}))
-        : [];
-
     const total =
       rows.length;
 
@@ -13059,217 +12835,10 @@ window.addEventListener(
 
             </div>
 
-            ${
-              isCompleted
-                ? (
-                    item.retakeAllowed === true
-                      ? `
-                          <div class="prudle-retake-allowed">
-                            <i class="fa-solid fa-rotate-right"></i>
-                            Retake Allowed
-                          </div>
-                        `
-                      : `
-                          <div class="prudle-participant-retake">
-                            <button
-                              type="button"
-                              onclick='allowPrudleStudentRetake(
-                                ${JSON.stringify(item.id)},
-                                ${JSON.stringify(item.studentName || "Student")}
-                              )'>
-                              <i class="fa-solid fa-rotate-right"></i>
-                              Allow This Student to Retake
-                            </button>
-                          </div>
-                        `
-                  )
-                : ""
-            }
-
           </article>
         `;
       }).join("");
   }
-
-
-  window.allowPrudleStudentRetake =
-    async function(
-      participantId,
-      studentName="Student"
-    ){
-
-      if(
-        !activeSessionId ||
-        !participantId
-      ){
-        return;
-      }
-
-      if(
-        !confirm(
-          `Allow ${studentName} to solve this activity again?`
-        )
-      ){
-        return;
-      }
-
-      try{
-
-        await db
-          .collection(
-            LIVE_SESSIONS_COLLECTION
-          )
-          .doc(activeSessionId)
-          .collection("participants")
-          .doc(participantId)
-          .set({
-            retakeAllowed:true,
-            retakeAllowedAt:
-              firebase
-                .firestore
-                .FieldValue
-                .serverTimestamp(),
-            retakeAllowedBy:
-              safeValue(
-                localStorage.getItem("username") ||
-                ""
-              ),
-            updatedAt:
-              firebase
-                .firestore
-                .FieldValue
-                .serverTimestamp()
-          },{
-            merge:true
-          });
-
-        alert(
-          `${studentName} can now solve the activity one more time.`
-        );
-
-      }catch(error){
-
-        console.error(error);
-
-        alert(
-          "Unable to allow the student to retake the activity."
-        );
-      }
-    };
-
-
-  window.allowPrudleGroupRetake =
-    async function(){
-
-      if(!activeSessionId){
-        return;
-      }
-
-      const completedRows =
-        latestParticipantRows.filter(
-          item=>
-            item.status === "completed" &&
-            item.retakeAllowed !== true
-        );
-
-      if(!completedRows.length){
-
-        alert(
-          "There are no completed students waiting for retake permission."
-        );
-
-        return;
-      }
-
-      if(
-        !confirm(
-          `Allow all ${completedRows.length} completed student(s) to solve this activity again?`
-        )
-      ){
-        return;
-      }
-
-      const button =
-        document.getElementById(
-          "prudleAllowGroupRetakeBtn"
-        );
-
-      if(button){
-        button.disabled = true;
-        button.innerHTML = `
-          <i class="fa-solid fa-spinner fa-spin"></i>
-          Updating...
-        `;
-      }
-
-      try{
-
-        const batch =
-          db.batch();
-
-        completedRows.forEach(item=>{
-
-          const ref =
-            db
-              .collection(
-                LIVE_SESSIONS_COLLECTION
-              )
-              .doc(activeSessionId)
-              .collection("participants")
-              .doc(item.id);
-
-          batch.set(
-            ref,
-            {
-              retakeAllowed:true,
-              retakeAllowedAt:
-                firebase
-                  .firestore
-                  .FieldValue
-                  .serverTimestamp(),
-              retakeAllowedBy:
-                safeValue(
-                  localStorage.getItem("username") ||
-                  ""
-                ),
-              updatedAt:
-                firebase
-                  .firestore
-                  .FieldValue
-                  .serverTimestamp()
-            },
-            {
-              merge:true
-            }
-          );
-        });
-
-        await batch.commit();
-
-        alert(
-          "Retake permission was granted to all completed students."
-        );
-
-      }catch(error){
-
-        console.error(error);
-
-        alert(
-          "Unable to grant group retake permission."
-        );
-
-      }finally{
-
-        if(button){
-          button.disabled = false;
-          button.innerHTML = `
-            <i class="fa-solid fa-people-arrows"></i>
-            Allow Retake for Completed Group
-          `;
-        }
-      }
-    };
-
 
   window.refreshPrudleLiveMonitor =
     function(){
