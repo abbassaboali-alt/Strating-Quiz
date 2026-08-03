@@ -4578,6 +4578,8 @@ async function loadStudentActivities(){
       return `
         <article
           class="open-activity-card"
+          data-activity-id="${esc(activity.id || "")}"
+          data-course-id="${esc(startCourseId || course?.id || "")}"
           data-types="${esc(getActivityGameTypes(activity).join(","))}"
           data-search="${esc([
             activity.title || "",
@@ -13373,6 +13375,464 @@ window.addEventListener(
       }
     };
 
+})();
+</script>
+
+
+<!-- =========================================================
+     INDIVIDUAL OPEN COURSES — LIVE USER ALERT SIDEBAR
+========================================================= -->
+<style>
+  .prudle-individual-alert-toggle{
+    position:fixed;
+    right:18px;
+    top:96px;
+    z-index:9100;
+    width:58px;
+    height:58px;
+    border:0;
+    border-radius:18px;
+    display:grid;
+    place-items:center;
+    background:linear-gradient(135deg,#164478,#2467a5);
+    color:#fff;
+    font-size:23px;
+    box-shadow:0 12px 28px rgba(22,68,120,.28);
+    transition:.2s;
+  }
+  .prudle-individual-alert-toggle:hover{transform:translateY(-2px) scale(1.03)}
+  .prudle-individual-alert-toggle.has-open-session{
+    animation:prudleIndividualPulse 1.5s infinite;
+  }
+  .prudle-individual-alert-count{
+    position:absolute;
+    right:-5px;
+    top:-6px;
+    min-width:24px;
+    height:24px;
+    padding:0 6px;
+    border-radius:999px;
+    display:grid;
+    place-items:center;
+    background:#e74c3c;
+    color:#fff;
+    border:3px solid #fff;
+    font-size:11px;
+    font-weight:900;
+  }
+  .prudle-individual-alert-count.hidden{display:none!important}
+
+  .prudle-individual-sidebar{
+    position:fixed;
+    right:0;
+    top:0;
+    z-index:9200;
+    width:min(390px,94vw);
+    height:100dvh;
+    padding:18px;
+    background:#f7fbff;
+    border-left:1px solid #dce6ef;
+    box-shadow:-18px 0 45px rgba(22,68,120,.22);
+    transform:translateX(105%);
+    transition:transform .3s ease;
+    overflow:auto;
+  }
+  .prudle-individual-sidebar.open{transform:translateX(0)}
+  .prudle-individual-sidebar-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:9150;
+    background:rgba(11,31,52,.48);
+    opacity:0;
+    visibility:hidden;
+    transition:.25s;
+  }
+  .prudle-individual-sidebar-backdrop.open{
+    opacity:1;
+    visibility:visible;
+  }
+  .prudle-individual-sidebar-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    padding:15px;
+    border-radius:19px;
+    background:linear-gradient(135deg,#164478,#2467a5);
+    color:#fff;
+    box-shadow:0 10px 24px rgba(22,68,120,.2);
+  }
+  .prudle-individual-sidebar-head h3{margin:0;font-size:18px}
+  .prudle-individual-sidebar-head p{margin:5px 0 0;font-size:12px;opacity:.85;line-height:1.6}
+  .prudle-individual-sidebar-close{
+    width:38px;
+    height:38px;
+    flex:0 0 38px;
+    border:0;
+    border-radius:12px;
+    background:rgba(255,255,255,.16);
+    color:#fff;
+    font-size:18px;
+  }
+  .prudle-individual-alert-summary{
+    margin:13px 0;
+    padding:11px 13px;
+    border:1px solid #f4cf58;
+    border-radius:14px;
+    background:#fff8dc;
+    color:#765500;
+    font-size:13px;
+    font-weight:900;
+  }
+  .prudle-individual-session-list{display:grid;gap:11px}
+  .prudle-individual-session-card{
+    width:100%;
+    border:1px solid #dce6ef;
+    border-radius:17px;
+    padding:13px;
+    background:#fff;
+    text-align:left;
+    box-shadow:0 7px 18px rgba(22,68,120,.07);
+    transition:.18s;
+  }
+  .prudle-individual-session-card:hover{
+    transform:translateY(-2px);
+    border-color:#2467a5;
+    box-shadow:0 11px 24px rgba(22,68,120,.13);
+  }
+  .prudle-individual-session-status{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:8px;
+    padding:5px 9px;
+    border-radius:999px;
+    background:#e8faf2;
+    color:#08744f;
+    font-size:11px;
+    font-weight:900;
+  }
+  .prudle-individual-session-status i{font-size:8px;animation:prudleDotBlink 1.2s infinite}
+  .prudle-individual-session-course{
+    color:#164478;
+    font-size:16px;
+    font-weight:900;
+    overflow-wrap:anywhere;
+  }
+  .prudle-individual-session-activity{
+    margin-top:4px;
+    color:#18324b;
+    font-size:13px;
+    font-weight:800;
+    overflow-wrap:anywhere;
+  }
+  .prudle-individual-session-meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:9px;
+  }
+  .prudle-individual-session-meta span{
+    padding:5px 7px;
+    border-radius:999px;
+    background:#edf4fa;
+    color:#51687c;
+    font-size:10px;
+    font-weight:800;
+  }
+  .prudle-individual-session-action{
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    gap:6px;
+    margin-top:10px;
+    color:#2467a5;
+    font-size:12px;
+    font-weight:900;
+  }
+  .prudle-individual-sidebar-empty{
+    padding:30px 14px;
+    border:1px dashed #b9d0e4;
+    border-radius:17px;
+    background:#fff;
+    text-align:center;
+    color:#6b7b8d;
+    font-weight:800;
+    line-height:1.8;
+  }
+  .prudle-individual-new-toast{
+    position:fixed;
+    right:88px;
+    top:105px;
+    z-index:9090;
+    max-width:min(340px,calc(100vw - 120px));
+    padding:11px 14px;
+    border-radius:14px;
+    background:#18324b;
+    color:#fff;
+    box-shadow:0 12px 28px rgba(0,0,0,.2);
+    opacity:0;
+    transform:translateY(-10px);
+    pointer-events:none;
+    transition:.25s;
+    font-size:12px;
+    font-weight:800;
+  }
+  .prudle-individual-new-toast.show{opacity:1;transform:none}
+  .prudle-highlight-open-activity{
+    animation:prudleCardHighlight 1.1s ease 2;
+    border-color:#f4b942!important;
+  }
+  @keyframes prudleIndividualPulse{
+    0%,100%{box-shadow:0 12px 28px rgba(22,68,120,.28)}
+    50%{box-shadow:0 0 0 9px rgba(244,185,66,.2),0 15px 35px rgba(22,68,120,.32)}
+  }
+  @keyframes prudleDotBlink{50%{opacity:.35}}
+  @keyframes prudleCardHighlight{
+    0%,100%{transform:none}
+    50%{transform:translateY(-4px);box-shadow:0 0 0 5px rgba(244,185,66,.22)}
+  }
+  @media(max-width:650px){
+    .prudle-individual-alert-toggle{right:12px;top:auto;bottom:18px}
+    .prudle-individual-new-toast{right:78px;top:auto;bottom:24px}
+    .prudle-individual-sidebar{width:100%;padding:12px}
+  }
+</style>
+
+<button
+  id="prudleIndividualAlertToggle"
+  class="prudle-individual-alert-toggle"
+  type="button"
+  title="Individual activities open now"
+  aria-label="Show Individual activities open now"
+  onclick="openPrudleIndividualSidebar()">
+  <i class="fa-solid fa-bell"></i>
+  <span id="prudleIndividualAlertCount" class="prudle-individual-alert-count hidden">0</span>
+</button>
+
+<div id="prudleIndividualSidebarBackdrop"
+     class="prudle-individual-sidebar-backdrop"
+     onclick="closePrudleIndividualSidebar()"></div>
+
+<aside id="prudleIndividualSidebar"
+       class="prudle-individual-sidebar"
+       aria-hidden="true">
+  <div class="prudle-individual-sidebar-head">
+    <div>
+      <h3><i class="fa-solid fa-user-graduate"></i> Individual Open Now</h3>
+      <p>الدورات والأنشطة المفتوحة حاليًا للطلاب بشكل فردي</p>
+    </div>
+    <button class="prudle-individual-sidebar-close"
+            type="button"
+            aria-label="Close"
+            onclick="closePrudleIndividualSidebar()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <div id="prudleIndividualAlertSummary" class="prudle-individual-alert-summary">
+    Checking open Individual activities...
+  </div>
+
+  <div id="prudleIndividualSessionList" class="prudle-individual-session-list">
+    <div class="prudle-individual-sidebar-empty">
+      <i class="fa-solid fa-spinner fa-spin"></i><br>
+      Loading...
+    </div>
+  </div>
+</aside>
+
+<div id="prudleIndividualNewToast" class="prudle-individual-new-toast"></div>
+
+<script>
+(function(){
+  const COLLECTION = "FunActivityLiveSessions";
+  let unsubscribe = null;
+  let firstSnapshot = true;
+  let lastOpenIds = new Set();
+  let toastTimer = null;
+
+  const safe = value => String(value ?? "").trim();
+  const escapeHtml = value => safe(value)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+
+  function timestampValue(value){
+    if(!value) return 0;
+    if(typeof value.toMillis === "function") return value.toMillis();
+    if(typeof value.seconds === "number") return value.seconds * 1000;
+    const parsed = new Date(value).getTime();
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function getVisibleIndividualSessions(snapshot){
+    return snapshot.docs
+      .map(doc=>({id:doc.id,...(doc.data() || {})}))
+      .filter(item=>
+        item.mode === "individual" &&
+        item.status === "active" &&
+        item.studentVisible !== false
+      )
+      .sort((a,b)=>
+        timestampValue(b.updatedAt || b.startedAt) -
+        timestampValue(a.updatedAt || a.startedAt)
+      );
+  }
+
+  function showNewOpenToast(session){
+    const box = document.getElementById("prudleIndividualNewToast");
+    if(!box) return;
+    box.innerHTML =
+      `<i class="fa-solid fa-bell"></i> ` +
+      `Individual opened: <b>${escapeHtml(session.courseName || "Course")}</b>`;
+    box.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>box.classList.remove("show"),5000);
+  }
+
+  function renderSidebar(sessions){
+    const list = document.getElementById("prudleIndividualSessionList");
+    const summary = document.getElementById("prudleIndividualAlertSummary");
+    const count = document.getElementById("prudleIndividualAlertCount");
+    const toggle = document.getElementById("prudleIndividualAlertToggle");
+    if(!list || !summary || !count || !toggle) return;
+
+    const total = sessions.length;
+    count.textContent = String(total);
+    count.classList.toggle("hidden",total === 0);
+    toggle.classList.toggle("has-open-session",total > 0);
+    summary.textContent = total
+      ? `${total} Individual ${total === 1 ? "activity is" : "activities are"} open now.`
+      : "No Individual activity is open for students now.";
+
+    if(!total){
+      list.innerHTML = `
+        <div class="prudle-individual-sidebar-empty">
+          <i class="fa-solid fa-lock"></i><br>
+          لا توجد دورات مفتوحة حاليًا بنظام Individual.<br>
+          No Individual activity is open now.
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = sessions.map(session=>`
+      <button class="prudle-individual-session-card"
+              type="button"
+              onclick="focusPrudleIndividualActivity('${escapeHtml(session.activityId)}','${escapeHtml(session.courseId)}')">
+        <span class="prudle-individual-session-status">
+          <i class="fa-solid fa-circle"></i> Open for Students
+        </span>
+        <div class="prudle-individual-session-course">
+          <i class="fa-solid fa-book-open"></i>
+          ${escapeHtml(session.courseName || "Open Course")}
+        </div>
+        <div class="prudle-individual-session-activity">
+          ${escapeHtml(session.activityTitle || "Interactive Activity")}
+        </div>
+        <div class="prudle-individual-session-meta">
+          ${session.trainerName ? `<span><i class="fa-solid fa-user-tie"></i> ${escapeHtml(session.trainerName)}</span>` : ""}
+          ${session.branch ? `<span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(session.branch)}</span>` : ""}
+          ${session.section ? `<span><i class="fa-solid fa-users"></i> ${escapeHtml(session.section)}</span>` : ""}
+          ${session.period ? `<span><i class="fa-solid fa-clock"></i> ${escapeHtml(session.period)}</span>` : ""}
+        </div>
+        <div class="prudle-individual-session-action">
+          Show activity <i class="fa-solid fa-arrow-right"></i>
+        </div>
+      </button>
+    `).join("");
+  }
+
+  window.openPrudleIndividualSidebar = function(){
+    document.getElementById("prudleIndividualSidebar")?.classList.add("open");
+    document.getElementById("prudleIndividualSidebarBackdrop")?.classList.add("open");
+    document.getElementById("prudleIndividualSidebar")?.setAttribute("aria-hidden","false");
+  };
+
+  window.closePrudleIndividualSidebar = function(){
+    document.getElementById("prudleIndividualSidebar")?.classList.remove("open");
+    document.getElementById("prudleIndividualSidebarBackdrop")?.classList.remove("open");
+    document.getElementById("prudleIndividualSidebar")?.setAttribute("aria-hidden","true");
+  };
+
+  window.focusPrudleIndividualActivity = function(activityId,courseId){
+    closePrudleIndividualSidebar();
+
+    const targetCourseSelect = document.getElementById("trainerTargetCourse");
+    if(targetCourseSelect && courseId){
+      const exists = Array.from(targetCourseSelect.options || [])
+        .some(option=>safe(option.value) === safe(courseId));
+      if(exists){
+        targetCourseSelect.value = courseId;
+        targetCourseSelect.dispatchEvent(new Event("change",{bubbles:true}));
+      }
+    }
+
+    const selector = `.open-activity-card[data-activity-id="${CSS.escape(safe(activityId))}"]`;
+    let card = null;
+    try{ card = document.querySelector(selector); }catch(_error){}
+
+    if(card){
+      card.classList.remove("hidden");
+      card.scrollIntoView({behavior:"smooth",block:"center"});
+      card.classList.add("prudle-highlight-open-activity");
+      setTimeout(()=>card.classList.remove("prudle-highlight-open-activity"),2600);
+      return;
+    }
+
+    document.getElementById("openActivitiesBox")?.scrollIntoView({behavior:"smooth",block:"start"});
+    if(typeof window.loadStudentActivities === "function"){
+      window.loadStudentActivities();
+    }
+  };
+
+  function startListener(){
+    if(unsubscribe) unsubscribe();
+
+    if(typeof db === "undefined"){
+      renderSidebar([]);
+      return;
+    }
+
+    unsubscribe = db.collection(COLLECTION).onSnapshot(snapshot=>{
+      const sessions = getVisibleIndividualSessions(snapshot);
+      const currentIds = new Set(sessions.map(item=>item.id));
+
+      if(!firstSnapshot){
+        const newlyOpened = sessions.find(item=>!lastOpenIds.has(item.id));
+        if(newlyOpened){
+          showNewOpenToast(newlyOpened);
+          openPrudleIndividualSidebar();
+        }
+      }
+
+      firstSnapshot = false;
+      lastOpenIds = currentIds;
+      renderSidebar(sessions);
+    },error=>{
+      console.error("Individual sidebar listener error:",error);
+      const summary = document.getElementById("prudleIndividualAlertSummary");
+      const list = document.getElementById("prudleIndividualSessionList");
+      if(summary) summary.textContent = "Unable to read open Individual activities.";
+      if(list) list.innerHTML = `<div class="prudle-individual-sidebar-empty">Check Firebase permissions or internet connection.</div>`;
+    });
+  }
+
+  document.addEventListener("keydown",event=>{
+    if(event.key === "Escape") closePrudleIndividualSidebar();
+  });
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded",startListener,{once:true});
+  }else{
+    startListener();
+  }
+
+  window.addEventListener("pagehide",()=>{
+    if(unsubscribe) unsubscribe();
+  });
 })();
 </script>
 
