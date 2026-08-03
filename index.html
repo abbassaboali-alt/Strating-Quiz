@@ -12303,6 +12303,111 @@ window.addEventListener(
         .remove("hidden");
     };
 
+  /*
+    Open the Teams / Individual selector for one exact activity and course.
+    This is used by the sidebar's Show activity button and does not return
+    the user to the general activities page.
+  */
+  window.openPrudleActivityModeFor =
+    async function(activityId,courseId){
+
+      const exactActivityId =
+        safeValue(activityId);
+
+      const exactCourseId =
+        safeValue(courseId);
+
+      const activity =
+        ACTIVITIES_CACHE.find(
+          item=>
+            safeValue(item.id) ===
+            exactActivityId
+        ) || null;
+
+      const course =
+        OPEN_COURSES_CACHE.find(
+          item=>
+            safeValue(item.id) ===
+            exactCourseId
+        ) || null;
+
+      if(!activity){
+        alert(
+          "Unable to find the selected activity."
+        );
+        return;
+      }
+
+      if(!course){
+        alert(
+          "Unable to find the course linked to this activity."
+        );
+        return;
+      }
+
+      pendingActivityId =
+        activity.id;
+
+      pendingCourseId =
+        course.id;
+
+      /*
+        Synchronize the course selector without navigating to or rendering
+        the general activities page.
+      */
+      const courseSelect =
+        document.getElementById(
+          "trainerTargetCourse"
+        );
+
+      if(courseSelect){
+        const optionExists =
+          Array.from(
+            courseSelect.options || []
+          )
+          .some(option=>
+            safeValue(option.value) ===
+            course.id
+          );
+
+        if(optionExists){
+          courseSelect.value =
+            course.id;
+        }
+      }
+
+      let savedSession = null;
+
+      try{
+        savedSession =
+          await findSavedIndividualSession(
+            activity.id,
+            course.id
+          );
+      }catch(error){
+        console.error(
+          "Unable to read the selected Individual session:",
+          error
+        );
+      }
+
+      applyModeModalState(
+        savedSession
+      );
+
+      document
+        .getElementById(
+          "prudleActivityModeModal"
+        )
+        ?.classList
+        .remove("hidden");
+
+      window.scrollTo({
+        top:0,
+        behavior:"smooth"
+      });
+    };
+
   window.closePrudleActivityModeModal =
     function(){
 
@@ -14375,94 +14480,62 @@ window.addEventListener(
     };
 
   window.focusPrudleIndividualActivity =
-    function(activityId,courseId){
-      closePrudleIndividualSidebar();
+    async function(activityId,courseId){
 
-      const targetCourseSelect =
-        document.getElementById(
-          "trainerTargetCourse"
-        );
+      const selectedActivityId =
+        safe(activityId);
+
+      const selectedCourseId =
+        safe(courseId);
 
       if(
-        targetCourseSelect &&
-        courseId
+        !selectedActivityId ||
+        !selectedCourseId
       ){
-        const exists =
-          Array.from(
-            targetCourseSelect.options ||
-            []
-          )
-          .some(option=>
-            safe(option.value) ===
-            safe(courseId)
-          );
-
-        if(exists){
-          targetCourseSelect.value =
-            courseId;
-
-          targetCourseSelect.dispatchEvent(
-            new Event(
-              "change",
-              {bubbles:true}
-            )
-          );
-        }
+        alert(
+          "Unable to identify the selected activity or course."
+        );
+        return;
       }
 
-      let card = null;
+      closePrudleIndividualSidebar();
 
-      try{
-        const selector =
-          `.open-activity-card[data-activity-id="${
-            CSS.escape(
-              safe(activityId)
-            )
-          }"]`;
-
-        card =
-          document.querySelector(
-            selector
-          );
-      }catch(_error){}
-
-      if(card){
-        card.classList.remove("hidden");
-
-        card.scrollIntoView({
-          behavior:"smooth",
-          block:"center"
-        });
-
-        card.classList.add(
-          "prudle-highlight-open-activity"
-        );
-
-        setTimeout(
-          ()=>card.classList.remove(
-            "prudle-highlight-open-activity"
-          ),
-          2600
+      /*
+        Open the exact selected activity's mode page directly:
+        - Individual Activity
+        - Teams Activity
+        No navigation to the general activities list.
+      */
+      if(
+        typeof window.openPrudleActivityModeFor ===
+        "function"
+      ){
+        await window.openPrudleActivityModeFor(
+          selectedActivityId,
+          selectedCourseId
         );
 
         return;
       }
 
-      document
-        .getElementById(
-          "openActivitiesBox"
-        )
-        ?.scrollIntoView({
-          behavior:"smooth",
-          block:"start"
-        });
-
+      /*
+        Safety fallback for an older copy of the page.
+      */
       if(
-        typeof window.loadStudentActivities ===
+        typeof window.startActivity ===
         "function"
       ){
-        window.loadStudentActivities();
+        window.startActivity(
+          selectedActivityId,
+          selectedCourseId
+        );
+
+        return;
       }
+
+      alert(
+        "The selected activity could not be opened."
+      );
     };
 
   function startListener(){
