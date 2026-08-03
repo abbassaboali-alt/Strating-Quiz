@@ -14375,27 +14375,9 @@ window.addEventListener(
     };
 
   window.focusPrudleIndividualActivity =
-    async function(activityId,courseId){
-
-      const selectedActivityId =
-        safe(activityId);
-
-      const selectedCourseId =
-        safe(courseId);
-
-      if(!selectedActivityId){
-        alert(
-          "Unable to identify the selected activity."
-        );
-        return;
-      }
-
+    function(activityId,courseId){
       closePrudleIndividualSidebar();
 
-      /*
-        Select the exact course linked to this Individual session first.
-        This preserves the correct trainer, branch, section and period.
-      */
       const targetCourseSelect =
         document.getElementById(
           "trainerTargetCourse"
@@ -14403,21 +14385,21 @@ window.addEventListener(
 
       if(
         targetCourseSelect &&
-        selectedCourseId
+        courseId
       ){
-        const matchingOption =
+        const exists =
           Array.from(
             targetCourseSelect.options ||
             []
           )
-          .find(option=>
+          .some(option=>
             safe(option.value) ===
-            selectedCourseId
+            safe(courseId)
           );
 
-        if(matchingOption){
+        if(exists){
           targetCourseSelect.value =
-            selectedCourseId;
+            courseId;
 
           targetCourseSelect.dispatchEvent(
             new Event(
@@ -14428,72 +14410,25 @@ window.addEventListener(
         }
       }
 
-      /*
-        Refresh the visible activity list after selecting the course.
-        The function may be synchronous or asynchronous, so Promise.resolve
-        safely supports both forms.
-      */
-      if(
-        typeof window.loadStudentActivities ===
-        "function"
-      ){
-        try{
-          await Promise.resolve(
-            window.loadStudentActivities()
-          );
-        }catch(error){
-          console.error(
-            "Unable to refresh activities before opening:",
-            error
-          );
-        }
-      }
-
-      /*
-        Open the exact activity stored in the selected sidebar card.
-        This uses the page's own startActivity flow, so admin/trainer
-        receives the normal Teams / Individual selector for that activity.
-      */
-      if(
-        typeof window.startActivity ===
-        "function"
-      ){
-        window.startActivity(
-          selectedActivityId,
-          selectedCourseId
-        );
-
-        return;
-      }
-
-      /*
-        Fallback for older page versions where startActivity is not global:
-        find the exact activity card and trigger its Start Activity button.
-      */
       let card = null;
 
       try{
+        const selector =
+          `.open-activity-card[data-activity-id="${
+            CSS.escape(
+              safe(activityId)
+            )
+          }"]`;
+
         card =
           document.querySelector(
-            `.open-activity-card[data-activity-id="${
-              CSS.escape(
-                selectedActivityId
-              )
-            }"]`
+            selector
           );
       }catch(_error){}
 
-      const startButton =
-        card?.querySelector(
-          'button[onclick*="startActivity"]'
-        );
-
-      if(startButton){
-        startButton.click();
-        return;
-      }
-
       if(card){
+        card.classList.remove("hidden");
+
         card.scrollIntoView({
           behavior:"smooth",
           block:"center"
@@ -14509,11 +14444,25 @@ window.addEventListener(
           ),
           2600
         );
+
+        return;
       }
 
-      alert(
-        "The selected activity could not be opened. Refresh the page and try again."
-      );
+      document
+        .getElementById(
+          "openActivitiesBox"
+        )
+        ?.scrollIntoView({
+          behavior:"smooth",
+          block:"start"
+        });
+
+      if(
+        typeof window.loadStudentActivities ===
+        "function"
+      ){
+        window.loadStudentActivities();
+      }
     };
 
   function startListener(){
