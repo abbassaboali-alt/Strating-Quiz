@@ -3088,6 +3088,7 @@ let LAST_TIMER_TICK_SECOND = null;
 let TEAM_COUNT = 1;
 let TEAMS = [];
 let CURRENT_TEAM_INDEX = 0;
+let LAST_ANSWERED_TEAM_ID = "";
 
 let RACE_MODE_ACTIVE = false;
 let RACE_TOTAL_STEPS = 1;
@@ -5022,6 +5023,7 @@ function confirmTeamSetup(){
   CURRENT_QUESTION_INDEX = 0;
   CURRENT_SCORE = 0;
   CURRENT_TEAM_INDEX = 0;
+  LAST_ANSWERED_TEAM_ID = "";
   ANSWER_LOCKED = false;
   ACTIVITY_FINISHED = false;
   ACTIVITY_TIME_LEFT = 0;
@@ -5280,6 +5282,11 @@ function recordCurrentTeamAnswer(
   if(!team){
     return;
   }
+
+  /* Remember the team that actually answered this question.
+     This makes turn rotation reliable even when a team is
+     removed from the active list (for example, Bomb Defuse). */
+  LAST_ANSWERED_TEAM_ID = team.id || "";
 
   captureTrainerAnswer(Boolean(isCorrect));
 
@@ -5775,6 +5782,7 @@ async function finishActivityByTimeout(){
   // نصف ثانية ثم السؤال التالي
   setTimeout(()=>{
 
+    advanceTeamTurn();
     CURRENT_QUESTION_INDEX++;
 
     if(
@@ -6459,21 +6467,71 @@ function getActiveBombTeams(){
   );
 }
 
-function advanceBombTeam(){
+function advanceTeamTurn(){
 
   const activeTeams =
-    getActiveBombTeams();
+    getCompetitionTeams();
 
   if(!activeTeams.length){
     CURRENT_TEAM_INDEX = 0;
+    LAST_ANSWERED_TEAM_ID = "";
     return;
   }
 
-  CURRENT_TEAM_INDEX =
-    (
-      CURRENT_TEAM_INDEX + 1
-    ) %
-    activeTeams.length;
+  /*
+    Rotate from the team that really answered, not merely from
+    the current numeric index. This fixes the issue where 4 teams
+    stayed on Group A and also handles eliminated Bomb teams safely.
+  */
+  const answeredId =
+    String(LAST_ANSWERED_TEAM_ID || "");
+
+  const answeredActiveIndex =
+    activeTeams.findIndex(
+      team => String(team.id || "") === answeredId
+    );
+
+  if(answeredActiveIndex >= 0){
+    CURRENT_TEAM_INDEX =
+      (answeredActiveIndex + 1) % activeTeams.length;
+  }else if(answeredId){
+    /* The answering team may have just been eliminated.
+       Choose the next surviving team in the original team order. */
+    const originalIndex =
+      TEAMS.findIndex(
+        team => String(team.id || "") === answeredId
+      );
+
+    let nextActiveId = "";
+
+    for(let step = 1; step <= TEAMS.length; step++){
+      const candidate =
+        TEAMS[(originalIndex + step + TEAMS.length) % TEAMS.length];
+
+      if(candidate && !candidate.bombEliminated){
+        nextActiveId = candidate.id;
+        break;
+      }
+    }
+
+    const nextIndex =
+      activeTeams.findIndex(
+        team => team.id === nextActiveId
+      );
+
+    CURRENT_TEAM_INDEX =
+      nextIndex >= 0 ? nextIndex : 0;
+  }else{
+    CURRENT_TEAM_INDEX =
+      (CURRENT_TEAM_INDEX + 1) % activeTeams.length;
+  }
+
+  LAST_ANSWERED_TEAM_ID = "";
+}
+
+/* Backward-compatible name used by older Bomb code. */
+function advanceBombTeam(){
+  advanceTeamTurn();
 }
 
 function getBombSpeedByMistakes(
@@ -6636,6 +6694,7 @@ function moveToNextBombQuestion(){
 
   stopBombTimer();
 
+  advanceTeamTurn();
   CURRENT_QUESTION_INDEX++;
 
   /*
@@ -10241,12 +10300,11 @@ function nextQuestionManually(){
     .toLowerCase();
 
   /*
-    Bomb Defuse changes to the next active team only when
-    the Next Question button is pressed.
+    Every completed question passes the turn to the next active
+    team. This applies to MCQ, Match, Order, Wheel, Balloon,
+    Mystery, Random, Voice, Media, Bomb, and mixed activities.
   */
-  if(answeredType === "bomb"){
-    advanceBombTeam();
-  }
+  advanceTeamTurn();
 
   CURRENT_QUESTION_INDEX++;
 
