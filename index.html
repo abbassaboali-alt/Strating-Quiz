@@ -13551,6 +13551,46 @@ window.addEventListener(
     font-weight:900;
   }
 
+  .prudle-individual-session-actions{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-top:12px;
+    flex-wrap:wrap;
+  }
+
+  .prudle-individual-show-btn,
+  .prudle-individual-unlink-btn{
+    border:none;
+    border-radius:11px;
+    padding:9px 12px;
+    font-family:inherit;
+    font-size:12px;
+    font-weight:900;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    cursor:pointer;
+  }
+
+  .prudle-individual-show-btn{
+    background:#edf4fa;
+    color:#164478;
+  }
+
+  .prudle-individual-unlink-btn{
+    background:#fff0ee;
+    color:#c0392b;
+    border:1px solid #f3aaa5;
+  }
+
+  .prudle-individual-unlink-btn:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+  }
+
   .prudle-individual-session-students{
     display:inline-flex;
     align-items:center;
@@ -13923,13 +13963,9 @@ window.addEventListener(
         getStudentCount(session.id);
 
       return `
-        <button
+        <article
           class="prudle-individual-session-card"
-          type="button"
-          onclick="focusPrudleIndividualActivity(
-            '${escapeHtml(session.activityId)}',
-            '${escapeHtml(session.courseId)}'
-          )">
+          data-session-id="${escapeHtml(session.id)}">
 
           <span class="prudle-individual-session-status">
             <i class="fa-solid fa-circle"></i>
@@ -14015,11 +14051,30 @@ window.addEventListener(
             }
           </div>
 
-          <div class="prudle-individual-session-action">
-            Show activity
-            <i class="fa-solid fa-arrow-right"></i>
+          <div class="prudle-individual-session-actions">
+            <button
+              class="prudle-individual-show-btn"
+              type="button"
+              onclick="focusPrudleIndividualActivity(
+                '${escapeHtml(session.activityId)}',
+                '${escapeHtml(session.courseId)}'
+              )">
+              <i class="fa-solid fa-arrow-right"></i>
+              Show activity
+            </button>
+
+            <button
+              class="prudle-individual-unlink-btn"
+              type="button"
+              onclick="unlinkPrudleIndividualSession(
+                '${escapeHtml(session.id)}',
+                '${escapeHtml(session.activityTitle || session.courseName || "this activity")}'
+              )">
+              <i class="fa-solid fa-link-slash"></i>
+              Unlink
+            </button>
           </div>
-        </button>
+        </article>
       `;
     }).join("");
   }
@@ -14209,6 +14264,114 @@ window.addEventListener(
           "aria-hidden",
           "true"
         );
+    };
+
+  window.unlinkPrudleIndividualSession =
+    async function(sessionId,activityTitle){
+
+      const role = getCurrentRole();
+
+      if(
+        !isAdminRole(role) &&
+        !isTrainerRole(role)
+      ){
+        alert(
+          "You do not have permission to unlink this activity."
+        );
+        return;
+      }
+
+      const confirmed =
+        confirm(
+          `Unlink "${safe(activityTitle)}" from students?\n\n` +
+          "Students will no longer see or enter this Individual activity."
+        );
+
+      if(!confirmed){
+        return;
+      }
+
+      const card =
+        document.querySelector(
+          `.prudle-individual-session-card[data-session-id="${
+            CSS.escape(
+              safe(sessionId)
+            )
+          }"]`
+        );
+
+      const button =
+        card?.querySelector(
+          ".prudle-individual-unlink-btn"
+        );
+
+      if(button){
+        button.disabled = true;
+        button.innerHTML = `
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          Unlinking...
+        `;
+      }
+
+      try{
+        await db
+          .collection(COLLECTION)
+          .doc(sessionId)
+          .update({
+            studentVisible:false,
+            status:"ended",
+            unlinkedByRole:role,
+            unlinkedByUsername:
+              typeof getLoginUsername === "function"
+                ? safe(getLoginUsername())
+                : safe(
+                    localStorage.getItem("username")
+                  ),
+            endedAt:
+              firebase
+                .firestore
+                .FieldValue
+                .serverTimestamp(),
+            updatedAt:
+              firebase
+                .firestore
+                .FieldValue
+                .serverTimestamp()
+          });
+
+        closePrudleIndividualSidebar();
+
+        if(
+          typeof toast ===
+          "function"
+        ){
+          toast(
+            "Individual activity unlinked from students ✅"
+          );
+        }else{
+          alert(
+            "The activity was unlinked successfully."
+          );
+        }
+
+      }catch(error){
+        console.error(
+          "Unable to unlink Individual activity:",
+          error
+        );
+
+        if(button){
+          button.disabled = false;
+          button.innerHTML = `
+            <i class="fa-solid fa-link-slash"></i>
+            Unlink
+          `;
+        }
+
+        alert(
+          "Unable to unlink the activity. Check Firebase permissions."
+        );
+      }
     };
 
   window.focusPrudleIndividualActivity =
