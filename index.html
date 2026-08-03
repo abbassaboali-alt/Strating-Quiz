@@ -5092,53 +5092,36 @@ function cancelTeamSetup(){
   backToActivities();
 }
 
+function getCompetitionTeams(){
+
+  return TEAMS.filter(
+    team => !team.bombEliminated
+  );
+}
+
 function getCurrentTeam(){
 
-  if(!TEAMS.length){
+  const activeTeams =
+    getCompetitionTeams();
+
+  if(!activeTeams.length){
     return null;
   }
 
-  const currentType =
-    String(
-      CURRENT_ACTIVITY
-        ?.questions
-        ?.[CURRENT_QUESTION_INDEX]
-        ?.type ||
-      ""
-    )
-    .trim()
-    .toLowerCase();
-
-  if(currentType === "bomb"){
-
-    const activeTeams =
-      TEAMS.filter(
-        team =>
-          !team.bombEliminated
-      );
-
-    if(!activeTeams.length){
-      return null;
-    }
-
-    CURRENT_TEAM_INDEX =
-      (
-        CURRENT_TEAM_INDEX %
-        activeTeams.length +
-        activeTeams.length
-      ) %
-      activeTeams.length;
-
-    return activeTeams[
-      CURRENT_TEAM_INDEX
-    ];
-  }
-
+  /*
+    Any team eliminated by the bomb is removed from the entire
+    competition, not only from Bomb questions. All later turns
+    rotate between the remaining teams only.
+  */
   CURRENT_TEAM_INDEX =
-    CURRENT_QUESTION_INDEX %
-    TEAMS.length;
+    (
+      CURRENT_TEAM_INDEX %
+      activeTeams.length +
+      activeTeams.length
+    ) %
+    activeTeams.length;
 
-  return TEAMS[
+  return activeTeams[
     CURRENT_TEAM_INDEX
   ];
 }
@@ -5342,20 +5325,22 @@ function renderLiveTeamBoard(){
       "liveTeamBoard"
     );
 
-  if(!TEAMS.length){
+  const visibleTeams =
+    getCompetitionTeams();
+
+  if(!visibleTeams.length){
     box.innerHTML = "";
     return;
   }
 
-  const activeIndex =
-    CURRENT_QUESTION_INDEX %
-    TEAMS.length;
+  const currentTeam =
+    getCurrentTeam();
 
   box.innerHTML =
-    TEAMS.map((team,index)=>`
+    visibleTeams.map((team)=>`
       <div class="
         live-team-item
-        ${index === activeIndex ? "active" : ""}
+        ${currentTeam && team.id === currentTeam.id ? "active" : ""}
       ">
         <strong>
           ${esc(team.name)}
@@ -5382,7 +5367,8 @@ function renderLiveTeamBoard(){
 
 function getRankedTeams(){
 
-  return [...TEAMS]
+  /* Eliminated teams never appear in the final ranking. */
+  return getCompetitionTeams()
     .map(team=>({
       ...team,
 
@@ -5436,7 +5422,10 @@ function renderTeamResults(){
       "teamRanking"
     );
 
-  if(!TEAMS.length){
+  const ranked =
+    getRankedTeams();
+
+  if(!ranked.length){
     box.classList.add("hidden");
     ranking.innerHTML = "";
 
@@ -5446,9 +5435,6 @@ function renderTeamResults(){
       ranked:[]
     };
   }
-
-  const ranked =
-    getRankedTeams();
 
   const firstTeam =
     ranked[0] || null;
@@ -6562,12 +6548,27 @@ function increaseTeamBombSpeed(team){
 
 function eliminateBombTeam(team){
 
-  if(!team){
+  if(!team || team.bombEliminated){
     return;
   }
 
   team.bombEliminated = true;
   team.bombExploded = true;
+
+  /*
+    Remove the eliminated team immediately from the visible board
+    and normalize the turn index for the remaining teams.
+  */
+  const activeTeams =
+    getCompetitionTeams();
+
+  if(activeTeams.length){
+    CURRENT_TEAM_INDEX =
+      CURRENT_TEAM_INDEX %
+      activeTeams.length;
+  }else{
+    CURRENT_TEAM_INDEX = 0;
+  }
 
   renderLiveTeamBoard();
 }
