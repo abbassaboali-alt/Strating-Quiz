@@ -2700,6 +2700,10 @@ button{font-family:inherit;cursor:pointer}
   .wheel-game.wheel-question-view{min-height:calc(100vh - 205px)}
 }
 
+
+/* Sudden Death: eliminated teams */
+.live-team-item.bomb-eliminated,
+.live-team-item.eliminated{opacity:.42;filter:grayscale(1);text-decoration:line-through;}
 </style>
 </head>
 
@@ -3057,7 +3061,8 @@ let WHEEL_STOP_TIMEOUT = null;
 let WHEEL_TIMER_STARTED = false;
 let WHEEL_ANIMATION_FRAME = null;
 let WHEEL_LAST_FRAME_TIME = 0;
-let WHEEL_SPEED_DEG_PER_SECOND = 420;
+let WHEEL_SPEED_DEG_PER_SECOND = 520;
+let WHEEL_IS_DECELERATING = false;
 
 /*
   يمنع تكرار صوت حركة الصور بسرعة زائدة جدًا.
@@ -7832,6 +7837,7 @@ function clearWheelState(){
 
   WHEEL_LAST_FRAME_TIME = 0;
   WHEEL_IS_SPINNING = false;
+  WHEEL_IS_DECELERATING = false;
   WHEEL_SELECTED_INDEX = -1;
   WHEEL_POINTS_MULTIPLIER = 1;
 
@@ -8015,15 +8021,11 @@ function renderWheelQuestion(
 
 function spinWheel(){
 
-  if(
-    ANSWER_LOCKED ||
-    ACTIVITY_FINISHED
-  ){
+  if(ANSWER_LOCKED || ACTIVITY_FINISHED || WHEEL_IS_DECELERATING){
     return;
   }
 
   const items = getWheelItems();
-
   if(items.length < 2){
     alert("This wheel requires at least two sections.");
     return;
@@ -8035,108 +8037,77 @@ function spinWheel(){
   const wrongButton = document.getElementById("wheelWrongBtn");
   const result = document.getElementById("wheelResult");
   const answersBox = document.getElementById("studentAnswers");
+  if(!button || !disc) return;
 
-  if(!button || !disc){
-    return;
-  }
-
-  /* الضغط الأول يبدأ دورانًا مستمرًا، والضغط الثاني يوقفه. */
   if(!WHEEL_IS_SPINNING){
-
-    if(!WHEEL_TIMER_STARTED){
-      WHEEL_TIMER_STARTED = true;
-      startActivityTimer();
-    }
-
-    WHEEL_IS_SPINNING = true;
-    WHEEL_LAST_FRAME_TIME = 0;
-
+    if(!WHEEL_TIMER_STARTED){ WHEEL_TIMER_STARTED=true; startActivityTimer(); }
+    WHEEL_IS_SPINNING=true;
+    WHEEL_LAST_FRAME_TIME=0;
     correctButton?.classList.add("hidden");
     wrongButton?.classList.add("hidden");
     result?.classList.add("hidden");
     answersBox?.classList.remove("wheel-question-view");
-
-    button.disabled = false;
-    button.innerHTML = `
-      <i class="fa-solid fa-stop"></i>
-      Stop Wheel
-    `;
-
-    disc.style.transition = "none";
+    button.innerHTML='<i class="fa-solid fa-stop"></i> Stop Wheel';
+    disc.style.transition="none";
     playWheelSpinSound();
 
     function rotateContinuously(timestamp){
-      if(!WHEEL_IS_SPINNING){
-        return;
-      }
-
-      if(!WHEEL_LAST_FRAME_TIME){
-        WHEEL_LAST_FRAME_TIME = timestamp;
-      }
-
-      const elapsed = Math.min(40,timestamp - WHEEL_LAST_FRAME_TIME);
-      WHEEL_LAST_FRAME_TIME = timestamp;
-      WHEEL_ROTATION += (WHEEL_SPEED_DEG_PER_SECOND * elapsed) / 1000;
-      disc.style.transform = `rotate(${WHEEL_ROTATION}deg)`;
-      WHEEL_ANIMATION_FRAME = requestAnimationFrame(rotateContinuously);
+      if(!WHEEL_IS_SPINNING || WHEEL_IS_DECELERATING) return;
+      if(!WHEEL_LAST_FRAME_TIME) WHEEL_LAST_FRAME_TIME=timestamp;
+      const elapsed=Math.min(40,timestamp-WHEEL_LAST_FRAME_TIME);
+      WHEEL_LAST_FRAME_TIME=timestamp;
+      WHEEL_ROTATION+=(WHEEL_SPEED_DEG_PER_SECOND*elapsed)/1000;
+      disc.style.transform=`rotate(${WHEEL_ROTATION}deg)`;
+      WHEEL_ANIMATION_FRAME=requestAnimationFrame(rotateContinuously);
     }
-
-    WHEEL_ANIMATION_FRAME = requestAnimationFrame(rotateContinuously);
+    WHEEL_ANIMATION_FRAME=requestAnimationFrame(rotateContinuously);
     return;
   }
 
-  /* الضغط الثاني: إيقاف العجلة وتحديد القطاع الموجود تحت السهم. */
-  WHEEL_IS_SPINNING = false;
+  /* الضغط الثاني يبدأ تباطؤًا واقعيًا، ولا يظهر السؤال إلا بعد توقف العجلة تمامًا. */
+  WHEEL_IS_SPINNING=false;
+  WHEEL_IS_DECELERATING=true;
+  if(WHEEL_ANIMATION_FRAME) cancelAnimationFrame(WHEEL_ANIMATION_FRAME);
+  WHEEL_ANIMATION_FRAME=null;
+  button.disabled=true;
+  button.innerHTML='<i class="fa-solid fa-hourglass-half"></i> Slowing Down...';
 
-  if(WHEEL_ANIMATION_FRAME){
-    cancelAnimationFrame(WHEEL_ANIMATION_FRAME);
-    WHEEL_ANIMATION_FRAME = null;
+  const startRotation=WHEEL_ROTATION;
+  const extraTurns=3+Math.random()*2;
+  const extraDegrees=extraTurns*360+Math.random()*360;
+  const finalRotation=startRotation+extraDegrees;
+  const duration=3200+Math.random()*900;
+  const startTime=performance.now();
+
+  function easeOutQuint(t){ return 1-Math.pow(1-t,5); }
+  function decelerate(now){
+    const progress=Math.min(1,(now-startTime)/duration);
+    WHEEL_ROTATION=startRotation+(finalRotation-startRotation)*easeOutQuint(progress);
+    disc.style.transform=`rotate(${WHEEL_ROTATION}deg)`;
+    if(progress<1){ WHEEL_ANIMATION_FRAME=requestAnimationFrame(decelerate); return; }
+
+    WHEEL_ANIMATION_FRAME=null;
+    WHEEL_IS_DECELERATING=false;
+    const step=360/items.length;
+    const normalized=((WHEEL_ROTATION%360)+360)%360;
+    const pointerAngle=(360-normalized)%360;
+    WHEEL_SELECTED_INDEX=Math.floor(pointerAngle/step)%items.length;
+    const selected=items[WHEEL_SELECTED_INDEX];
+    const doublePoints=clean(selected?.text||"").includes("double points");
+    WHEEL_POINTS_MULTIPLIER=doublePoints?2:1;
+    playWheelStopSound();
+
+    if(result){
+      result.innerHTML=`<div class="wheel-result-category">${doublePoints?"✨":"🎯"} ${esc(selected?.text||"Selected Challenge")} ${doublePoints?" — 2 Points":""}</div><div class="wheel-result-question">${esc(selected?.right||selected?.challenge||selected?.question||"Complete the selected challenge.")}</div>${selected?.image?`<img src="${esc(selected.image)}" alt="Wheel challenge">`:""}`;
+      result.classList.remove("hidden");
+    }
+    answersBox?.classList.add("wheel-question-view");
+    correctButton?.classList.remove("hidden");
+    wrongButton?.classList.remove("hidden");
+    button.classList.add("hidden");
+    result?.scrollIntoView({behavior:"smooth",block:"center"});
   }
-
-  WHEEL_LAST_FRAME_TIME = 0;
-
-  const step = 360 / items.length;
-  const normalizedRotation = ((WHEEL_ROTATION % 360) + 360) % 360;
-  const pointerAngleOnWheel = (360 - normalizedRotation) % 360;
-  WHEEL_SELECTED_INDEX = Math.floor(pointerAngleOnWheel / step) % items.length;
-
-  const selected = items[WHEEL_SELECTED_INDEX];
-  const doublePoints = clean(selected?.text || "").includes("double points");
-  WHEEL_POINTS_MULTIPLIER = doublePoints ? 2 : 1;
-
-  if(result){
-    result.innerHTML = `
-      <div class="wheel-result-category">
-        ${doublePoints ? "✨" : "🎯"}
-        ${esc(selected?.text || "Selected Challenge")}
-        ${doublePoints ? " — 2 Points" : ""}
-      </div>
-
-      <div class="wheel-result-question">
-        ${esc(
-          selected?.right ||
-          selected?.challenge ||
-          selected?.question ||
-          "Complete the selected challenge."
-        )}
-      </div>
-
-      ${selected?.image ? `
-        <img src="${esc(selected.image)}" alt="Wheel challenge">
-      ` : ""}
-    `;
-
-    result.classList.remove("hidden");
-  }
-
-  /* بعد الاختيار نخفي العجلة ونعرض السؤال وحده بحجم الشاشة. */
-  answersBox?.classList.add("wheel-question-view");
-  correctButton?.classList.remove("hidden");
-  wrongButton?.classList.remove("hidden");
-
-  button.disabled = true;
-  button.classList.add("hidden");
-  playWheelStopSound();
+  WHEEL_ANIMATION_FRAME=requestAnimationFrame(decelerate);
 }
 
 function gradeWheelAnswer(isCorrect){
