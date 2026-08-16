@@ -3250,6 +3250,7 @@ let WHEEL_MCQ_ANIMATION_FRAME = null;
 let WHEEL_MCQ_LAST_FRAME_TIME = 0;
 let WHEEL_MCQ_SPEED_DEG_PER_SECOND = 900;
 let WHEEL_MCQ_IS_DECELERATING = false;
+let WHEEL_MCQ_TIMER_STARTED = false;
 
 /*
   يمنع تكرار صوت حركة الصور بسرعة زائدة جدًا.
@@ -5038,6 +5039,7 @@ function prepareTimerForCurrentQuestion(){
   if(
     type === "random" ||
     type === "wheel" ||
+    type === "wheelmcq" ||
     type === "balloon" ||
     type === "mystery"
   ){
@@ -5048,6 +5050,10 @@ function prepareTimerForCurrentQuestion(){
 
     if(type === "wheel"){
       WHEEL_TIMER_STARTED = false;
+    }
+
+    if(type === "wheelmcq"){
+      WHEEL_MCQ_TIMER_STARTED = false;
     }
 
     const timerType =
@@ -8431,6 +8437,16 @@ function revealWheelMcqQuestion(selectedIndex){
   }
 
   document.getElementById("gameQuestion").textContent = `🎯 Question ${number}`;
+
+  /*
+    Wheel + Multiple Choice:
+    The countdown must NOT run while the wheel is spinning.
+    It starts only after the selected question is actually revealed.
+  */
+  if(!WHEEL_MCQ_TIMER_STARTED){
+    WHEEL_MCQ_TIMER_STARTED = true;
+    startActivityTimer();
+  }
 }
 
 function renderWheelMcqQuestion(question,answersBox){
@@ -8440,6 +8456,7 @@ function renderWheelMcqQuestion(question,answersBox){
   WHEEL_MCQ_POINTS_AWARDED = false;
   WHEEL_MCQ_IS_SPINNING = false;
   WHEEL_MCQ_IS_DECELERATING = false;
+  WHEEL_MCQ_TIMER_STARTED = false;
   stopWheelMcqAnimation();
   answersBox.className = "wheel-mcq-game";
 
