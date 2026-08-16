@@ -1382,6 +1382,65 @@ button{font-family:inherit;cursor:pointer}
   .wheel-mcq-question-text{font-size:20px}
 }
 
+/* Realistic Wheel + MCQ behavior */
+.wheel-mcq-wheel-stage{
+  transition:opacity .22s ease,transform .22s ease;
+}
+.wheel-mcq-wheel-stage.hidden-after-selection{
+  display:none!important;
+}
+.wheel-mcq-disc{
+  transition:none;
+  will-change:transform;
+}
+.wheel-mcq-segment-label{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  min-width:48px;
+  height:48px;
+  padding:0 10px;
+  display:grid;
+  place-items:center;
+  border-radius:999px;
+  background:rgba(255,255,255,.96);
+  color:#164478;
+  border:3px solid rgba(255,255,255,.85);
+  box-shadow:0 5px 14px rgba(0,0,0,.20);
+  font-size:22px;
+  font-weight:900;
+  line-height:1;
+  z-index:4;
+  pointer-events:none;
+  text-shadow:none;
+}
+.wheel-mcq-last-question-note{
+  max-width:760px;
+  margin:8px auto 14px;
+  padding:12px 15px;
+  border-radius:14px;
+  background:#fff8dd;
+  border:1px solid #efd276;
+  color:#765500;
+  font-weight:900;
+}
+.wheel-mcq-cw-actions{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+.wheel-mcq-cw-actions .btn{
+  min-width:150px;
+}
+@media(max-width:650px){
+  .wheel-mcq-segment-label{
+    min-width:40px;
+    height:40px;
+    font-size:18px;
+  }
+}
+
 
 /* =====================================
    BALLOON POP QUESTION
@@ -3187,6 +3246,10 @@ let WHEEL_MCQ_SELECTED_ANSWER_INDEX = -1;
 let WHEEL_MCQ_ROTATION = 0;
 let WHEEL_MCQ_NUMBER_MAP = new Map();
 let WHEEL_MCQ_POINTS_AWARDED = false;
+let WHEEL_MCQ_ANIMATION_FRAME = null;
+let WHEEL_MCQ_LAST_FRAME_TIME = 0;
+let WHEEL_MCQ_SPEED_DEG_PER_SECOND = 900;
+let WHEEL_MCQ_IS_DECELERATING = false;
 
 /*
   يمنع تكرار صوت حركة الصور بسرعة زائدة جدًا.
@@ -8119,7 +8182,9 @@ function getWheelColors(count){
 
 
 function resetWheelMcqState(){
+  stopWheelMcqAnimation();
   WHEEL_MCQ_IS_SPINNING = false;
+  WHEEL_MCQ_IS_DECELERATING = false;
   WHEEL_MCQ_SELECTED_QUESTION_INDEX = -1;
   WHEEL_MCQ_SELECTED_ANSWER_INDEX = -1;
   WHEEL_MCQ_ROTATION = 0;
@@ -8176,16 +8241,126 @@ function buildWheelMcqMedia(question){
   return "";
 }
 
+function stopWheelMcqAnimation(){
+  if(WHEEL_MCQ_ANIMATION_FRAME){
+    cancelAnimationFrame(WHEEL_MCQ_ANIMATION_FRAME);
+    WHEEL_MCQ_ANIMATION_FRAME = null;
+  }
+  WHEEL_MCQ_LAST_FRAME_TIME = 0;
+}
+
+function getWheelMcqAnswerMode(question){
+  const raw = String(
+    question?.wheelAnswerMode ||
+    question?.answerMode ||
+    "multiplechoice"
+  ).trim().toLowerCase();
+
+  return ["correctwrong","correct-wrong","correct_wrong","cw","truefalse"].includes(raw)
+    ? "correctwrong"
+    : "multiplechoice";
+}
+
+function buildWheelMcqQuestionContent(selectedQuestion,number){
+  const mode = getWheelMcqAnswerMode(selectedQuestion);
+
+  if(mode === "correctwrong"){
+    return `
+      <div class="wheel-mcq-question-number">Question ${number}</div>
+      <div class="wheel-mcq-question-text">${esc(selectedQuestion.text || selectedQuestion.question || "")}</div>
+      ${buildWheelMcqMedia(selectedQuestion)}
+      <div class="wheel-mcq-cw-actions">
+        <button class="btn btn-success" type="button" onclick="gradeWheelMcqCorrectWrong(true,this)">
+          <i class="fa-solid fa-check"></i> Correct
+        </button>
+        <button class="btn btn-danger" type="button" onclick="gradeWheelMcqCorrectWrong(false,this)">
+          <i class="fa-solid fa-xmark"></i> Wrong
+        </button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="wheel-mcq-question-number">Question ${number}</div>
+    <div class="wheel-mcq-question-text">${esc(selectedQuestion.text || selectedQuestion.question || "")}</div>
+    ${buildWheelMcqMedia(selectedQuestion)}
+    <div class="wheel-mcq-options">
+      ${(selectedQuestion.answers || []).map((answer,index)=>`
+        <button class="wheel-mcq-option" type="button" onclick="chooseWheelMcqAnswer(${index},this)" data-answer-text="${esc(answer.text || "")}">
+          ${getItemImage(answer) ? `<img src="${esc(getItemImage(answer))}" alt="">` : ""}
+          ${answer.text ? `<div>${esc(answer.text)}</div>` : ""}
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function revealWheelMcqQuestion(selectedIndex){
+  moveSelectedQuestionToCurrent(selectedIndex);
+
+  const selectedQuestion = CURRENT_ACTIVITY.questions[CURRENT_QUESTION_INDEX];
+  const number = getWheelMcqQuestionNumber(selectedQuestion,CURRENT_QUESTION_INDEX);
+  WHEEL_MCQ_SELECTED_QUESTION_INDEX = CURRENT_QUESTION_INDEX;
+
+  const stage = document.getElementById("wheelMcqWheelStage");
+  if(stage) stage.classList.add("hidden-after-selection");
+
+  const card = document.getElementById("wheelMcqQuestionCard");
+  if(card){
+    card.innerHTML = buildWheelMcqQuestionContent(selectedQuestion,number);
+    card.classList.remove("hidden");
+  }
+
+  document.getElementById("gameQuestion").textContent = `🎯 Question ${number}`;
+}
+
 function renderWheelMcqQuestion(question,answersBox){
   const remainingIndexes = getRemainingWheelMcqIndexes();
   WHEEL_MCQ_SELECTED_QUESTION_INDEX = -1;
   WHEEL_MCQ_SELECTED_ANSWER_INDEX = -1;
   WHEEL_MCQ_POINTS_AWARDED = false;
   WHEEL_MCQ_IS_SPINNING = false;
+  WHEEL_MCQ_IS_DECELERATING = false;
+  stopWheelMcqAnimation();
   answersBox.className = "wheel-mcq-game";
 
   if(!remainingIndexes.length){
     answersBox.innerHTML = '<div class="feedback bad">No Wheel + Multiple Choice questions remain.</div>';
+    return;
+  }
+
+  const team = getCurrentTeam();
+
+  /* If only one question remains, there is no reason to spin. */
+  if(remainingIndexes.length === 1){
+    const onlyIndex = remainingIndexes[0];
+    const onlyQuestion = CURRENT_ACTIVITY.questions[onlyIndex];
+    const onlyNumber = getWheelMcqQuestionNumber(onlyQuestion,onlyIndex);
+
+    answersBox.innerHTML = `
+      <div class="wheel-mcq-last-question-note">
+        🎯 Only Question ${onlyNumber} remains — it opens directly without spinning the wheel.
+      </div>
+      <div id="wheelMcqQuestionCard" class="wheel-mcq-question-card"></div>
+      <div id="wheelMcqScorePanel" class="wheel-mcq-score-panel hidden">
+        <div class="wheel-mcq-points-row">
+          <div>
+            <label>Team</label>
+            <div id="wheelMcqCurrentTeam" class="wheel-mcq-current-team">${esc(team?.name || "Current Team")}</div>
+          </div>
+          <div>
+            <label>Points</label>
+            <input id="wheelMcqPointsInput" type="number" min="0" step="1" value="1" inputmode="numeric">
+          </div>
+          <button id="wheelMcqAwardBtn" class="btn btn-primary" type="button" onclick="awardWheelMcqPoints()">
+            <i class="fa-solid fa-plus"></i> Add Points
+          </button>
+        </div>
+        <div id="wheelMcqPointsSaved" class="wheel-mcq-points-saved hidden"></div>
+      </div>
+    `;
+
+    revealWheelMcqQuestion(onlyIndex);
     return;
   }
 
@@ -8195,11 +8370,19 @@ function renderWheelMcqQuestion(question,answersBox){
     `${colors[i]} ${i*step}deg ${(i+1)*step}deg`
   ).join(",");
 
-  const team = getCurrentTeam();
+  const labels = remainingIndexes.map((questionIndex,i)=>{
+    const centerDeg = i * step + step / 2;
+    const rad = centerDeg * Math.PI / 180;
+    const radiusPercent = 31.5;
+    const left = 50 + radiusPercent * Math.sin(rad);
+    const top = 50 - radiusPercent * Math.cos(rad);
+    const number = getWheelMcqQuestionNumber(CURRENT_ACTIVITY.questions[questionIndex],questionIndex);
+    return `<div class="wheel-mcq-segment-label" style="left:${left.toFixed(2)}%;top:${top.toFixed(2)}%">${number}</div>`;
+  }).join("");
 
   answersBox.innerHTML = `
     <div class="wheel-mcq-instruction">
-      Spin the wheel. Only question numbers are shown. After answering, the trainer enters the team's points manually.
+      Press <b>Spin Wheel</b> to start a fast continuous spin, then press <b>Stop Wheel</b> when you want it to choose a question.
     </div>
 
     <div class="wheel-mcq-remaining">
@@ -8208,22 +8391,20 @@ function renderWheelMcqQuestion(question,answersBox){
       `).join("")}
     </div>
 
-    <div class="wheel-wrap">
-      <div class="wheel-pointer">▼</div>
-      <div id="wheelMcqDisc" class="wheel-disc" style="background:conic-gradient(${gradient})">
-        ${remainingIndexes.map((questionIndex,i)=>`
-          <div class="wheel-label" style="transform:rotate(${i*step+step/2}deg) translateY(-50%)">
-            ${getWheelMcqQuestionNumber(CURRENT_ACTIVITY.questions[questionIndex],questionIndex)}
-          </div>
-        `).join("")}
-        <div class="wheel-center">🎡</div>
+    <div id="wheelMcqWheelStage" class="wheel-mcq-wheel-stage">
+      <div class="wheel-wrap">
+        <div class="wheel-pointer">▼</div>
+        <div id="wheelMcqDisc" class="wheel-disc wheel-mcq-disc" style="background:conic-gradient(${gradient})">
+          ${labels}
+          <div class="wheel-center">🎡</div>
+        </div>
       </div>
-    </div>
 
-    <div class="wheel-controls">
-      <button id="wheelMcqSpinBtn" class="btn btn-gold" type="button" onclick="spinWheelMcq()">
-        <i class="fa-solid fa-rotate"></i> Spin Wheel
-      </button>
+      <div class="wheel-controls">
+        <button id="wheelMcqSpinBtn" class="btn btn-gold" type="button" onclick="spinWheelMcq()">
+          <i class="fa-solid fa-rotate"></i> Spin Wheel
+        </button>
+      </div>
     </div>
 
     <div id="wheelMcqQuestionCard" class="wheel-mcq-question-card hidden"></div>
@@ -8248,55 +8429,115 @@ function renderWheelMcqQuestion(question,answersBox){
 }
 
 function spinWheelMcq(){
-  if(ANSWER_LOCKED || ACTIVITY_FINISHED || WHEEL_MCQ_IS_SPINNING) return;
+  if(ANSWER_LOCKED || ACTIVITY_FINISHED || WHEEL_MCQ_IS_DECELERATING) return;
 
   const remainingIndexes = getRemainingWheelMcqIndexes();
   if(!remainingIndexes.length) return;
+
+  /* Last question is shown directly and never spins. */
+  if(remainingIndexes.length === 1){
+    revealWheelMcqQuestion(remainingIndexes[0]);
+    return;
+  }
 
   const button = document.getElementById("wheelMcqSpinBtn");
   const disc = document.getElementById("wheelMcqDisc");
   if(!button || !disc) return;
 
-  WHEEL_MCQ_IS_SPINNING = true;
+  /* First press: start a fast continuous, realistic spin. */
+  if(!WHEEL_MCQ_IS_SPINNING){
+    WHEEL_MCQ_IS_SPINNING = true;
+    WHEEL_MCQ_LAST_FRAME_TIME = 0;
+    disc.style.transition = "none";
+    button.innerHTML = '<i class="fa-solid fa-stop"></i> Stop Wheel';
+    button.classList.remove("btn-gold");
+    button.classList.add("btn-danger");
+    playWheelSpinSound();
+
+    const rotateContinuously = timestamp=>{
+      if(!WHEEL_MCQ_IS_SPINNING || WHEEL_MCQ_IS_DECELERATING) return;
+      if(!WHEEL_MCQ_LAST_FRAME_TIME) WHEEL_MCQ_LAST_FRAME_TIME = timestamp;
+      const elapsed = Math.min(40,timestamp - WHEEL_MCQ_LAST_FRAME_TIME);
+      WHEEL_MCQ_LAST_FRAME_TIME = timestamp;
+      WHEEL_MCQ_ROTATION += (WHEEL_MCQ_SPEED_DEG_PER_SECOND * elapsed) / 1000;
+      disc.style.transform = `rotate(${WHEEL_MCQ_ROTATION}deg)`;
+      WHEEL_MCQ_ANIMATION_FRAME = requestAnimationFrame(rotateContinuously);
+    };
+
+    WHEEL_MCQ_ANIMATION_FRAME = requestAnimationFrame(rotateContinuously);
+    return;
+  }
+
+  /* Second press: choose a slot now, decelerate naturally, then reveal it. */
+  WHEEL_MCQ_IS_SPINNING = false;
+  WHEEL_MCQ_IS_DECELERATING = true;
+  stopWheelMcqAnimation();
+
   button.disabled = true;
-  button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Spinning...';
+  button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Stopping...';
 
   const selectedSlot = Math.floor(Math.random() * remainingIndexes.length);
   const selectedIndex = remainingIndexes[selectedSlot];
   const step = 360 / remainingIndexes.length;
   const centerAngle = selectedSlot * step + step / 2;
 
-  WHEEL_MCQ_ROTATION += 1440 + (360 - centerAngle);
-  disc.style.transform = `rotate(${WHEEL_MCQ_ROTATION}deg)`;
-  playWheelSpinSound();
+  const currentNormalized = ((WHEEL_MCQ_ROTATION % 360) + 360) % 360;
+  const desiredNormalized = ((360 - centerAngle) % 360 + 360) % 360;
+  const correction = (desiredNormalized - currentNormalized + 360) % 360;
+  const extraTurns = 3 * 360;
+  WHEEL_MCQ_ROTATION += extraTurns + correction;
+
+  disc.style.transition = "transform 1.85s cubic-bezier(.12,.72,.12,1)";
+  requestAnimationFrame(()=>{
+    disc.style.transform = `rotate(${WHEEL_MCQ_ROTATION}deg)`;
+  });
 
   setTimeout(()=>{
-    WHEEL_MCQ_IS_SPINNING = false;
+    WHEEL_MCQ_IS_DECELERATING = false;
+    revealWheelMcqQuestion(selectedIndex);
+  },1900);
+}
 
-    moveSelectedQuestionToCurrent(selectedIndex);
-    const selectedQuestion = CURRENT_ACTIVITY.questions[CURRENT_QUESTION_INDEX];
-    const number = getWheelMcqQuestionNumber(selectedQuestion,CURRENT_QUESTION_INDEX);
-    WHEEL_MCQ_SELECTED_QUESTION_INDEX = CURRENT_QUESTION_INDEX;
+function gradeWheelMcqCorrectWrong(isCorrect,clickedButton){
+  if(
+    ANSWER_LOCKED ||
+    ACTIVITY_FINISHED ||
+    WHEEL_MCQ_IS_SPINNING ||
+    WHEEL_MCQ_IS_DECELERATING ||
+    WHEEL_MCQ_SELECTED_QUESTION_INDEX < 0
+  ) return;
 
-    const card = document.getElementById("wheelMcqQuestionCard");
-    card.innerHTML = `
-      <div class="wheel-mcq-question-number">Question ${number}</div>
-      <div class="wheel-mcq-question-text">${esc(selectedQuestion.text || selectedQuestion.question || "")}</div>
-      ${buildWheelMcqMedia(selectedQuestion)}
-      <div class="wheel-mcq-options">
-        ${(selectedQuestion.answers || []).map((answer,index)=>`
-          <button class="wheel-mcq-option" type="button" onclick="chooseWheelMcqAnswer(${index},this)" data-answer-text="${esc(answer.text || "")}">
-            ${getItemImage(answer) ? `<img src="${esc(getItemImage(answer))}" alt="">` : ""}
-            ${answer.text ? `<div>${esc(answer.text)}</div>` : ""}
-          </button>
-        `).join("")}
-      </div>
-    `;
-    card.classList.remove("hidden");
+  ANSWER_LOCKED = true;
+  WHEEL_MCQ_SELECTED_ANSWER_INDEX = isCorrect ? 0 : 1;
 
-    document.getElementById("gameQuestion").textContent = `🎯 Question ${number}`;
-    button.classList.add("hidden");
-  },4400);
+  document.querySelectorAll(".wheel-mcq-cw-actions button").forEach(button=>{
+    button.disabled = true;
+  });
+
+  if(clickedButton){
+    clickedButton.style.boxShadow = "0 0 0 4px rgba(22,68,120,.12)";
+  }
+
+  const feedback = document.getElementById("feedback");
+  feedback.className = "feedback";
+
+  if(isCorrect){
+    CURRENT_SCORE++;
+    feedback.textContent = "🎉 Correct! Enter the team's points.";
+    feedback.classList.add("good");
+    launchSmallConfetti();
+    playCorrectSound();
+  }else{
+    feedback.textContent = "❌ Wrong — Enter the team's points.";
+    feedback.classList.add("bad");
+    playWrongSound();
+  }
+
+  recordCurrentTeamAnswer(Boolean(isCorrect));
+  document.getElementById("scorePill").textContent = `⭐ ${CURRENT_SCORE}`;
+
+  const scorePanel = document.getElementById("wheelMcqScorePanel");
+  if(scorePanel) scorePanel.classList.remove("hidden");
 }
 
 function chooseWheelMcqAnswer(answerIndex,clickedButton){
