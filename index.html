@@ -1262,6 +1262,54 @@ button{font-family:inherit;cursor:pointer}
   color:#fff;
 }
 
+.wheel-remaining{
+  margin:10px auto 4px;
+  font-weight:900;
+  color:var(--blue);
+}
+
+.wheel-manual-score{
+  width:min(620px,100%);
+  margin:16px auto 0;
+  padding:15px;
+  border:2px solid var(--gold);
+  border-radius:18px;
+  background:#fffaf0;
+}
+
+.wheel-manual-score .wheel-team-now{
+  font-size:18px;
+  font-weight:900;
+  color:var(--blue);
+  margin-bottom:10px;
+}
+
+.wheel-manual-score-row{
+  display:flex;
+  justify-content:center;
+  align-items:end;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.wheel-manual-score-row label{
+  display:block;
+  text-align:left;
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:5px;
+}
+
+.wheel-manual-score-row input{
+  width:160px;
+  max-width:100%;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:11px 12px;
+  font:inherit;
+  font-weight:900;
+}
+
 @media(max-width:600px){
   .wheel-label{font-size:11px}
   .wheel-pointer{font-size:40px}
@@ -3063,6 +3111,11 @@ let WHEEL_ANIMATION_FRAME = null;
 let WHEEL_LAST_FRAME_TIME = 0;
 let WHEEL_SPEED_DEG_PER_SECOND = 520;
 let WHEEL_IS_DECELERATING = false;
+
+/* Wheel sections stay inside the same Wheel question until all are completed. */
+let WHEEL_REMAINING_INDICES = [];
+let WHEEL_ACTIVE_QUESTION_ID = "";
+let WHEEL_CURRENT_LOCAL_INDEX = -1;
 
 /*
   يمنع تكرار صوت حركة الصور بسرعة زائدة جدًا.
@@ -4997,6 +5050,7 @@ function confirmTeamSetup(){
       name,
       correct:0,
       answered:0,
+      points:0,
       assigned:0,
       racePosition:0,
       bombEliminated:false,
@@ -5007,20 +5061,26 @@ function confirmTeamSetup(){
   );
 
   /*
-    Calculate how many questions are assigned
-    to every team using round-robin distribution.
+    Calculate team turns using real playable items.
+    A Wheel of Fortune question contributes one turn for EACH
+    wheel section, because every section is played by a team.
   */
+  let assignmentTurnIndex = 0;
 
-  CURRENT_ACTIVITY.questions.forEach(
-    (_,questionIndex)=>{
+  CURRENT_ACTIVITY.questions.forEach(question=>{
+    const type = String(question?.type || "").trim().toLowerCase();
+    const turns = type === "wheel"
+      ? Math.max(1,(Array.isArray(question?.answers)
+          ? question.answers.filter(item=>String(item?.text || "").trim()).length
+          : 0))
+      : 1;
 
-      const teamIndex =
-        questionIndex %
-        TEAM_COUNT;
-
+    for(let turn=0; turn<turns; turn++){
+      const teamIndex = assignmentTurnIndex % TEAM_COUNT;
       TEAMS[teamIndex].assigned++;
+      assignmentTurnIndex++;
     }
-  );
+  });
 
   CURRENT_QUESTION_INDEX = 0;
   CURRENT_SCORE = 0;
@@ -5032,6 +5092,9 @@ function confirmTeamSetup(){
   CURRENT_ORDER_SELECTION = [];
   ACTIVITY_ANSWER_LOG = [];
   CURRENT_USAGE_ID = "";
+  WHEEL_ACTIVE_QUESTION_ID = "";
+  WHEEL_REMAINING_INDICES = [];
+  WHEEL_SELECTED_INDEX = -1;
 
   document
     .getElementById("teamSetupArea")
@@ -5356,6 +5419,8 @@ function renderLiveTeamBoard(){
         </strong>
 
         <span>
+          🏆 ${Number(team.points || 0)} pts
+          &nbsp; | &nbsp;
           ✅ ${team.correct}
           &nbsp; | &nbsp;
           Answered ${team.answered}/${team.assigned}
@@ -5405,6 +5470,9 @@ function getRankedTeams(){
             )
           : 0
       ) ||
+
+      Number(b.points || 0) -
+      Number(a.points || 0) ||
 
       b.correct -
       a.correct ||
@@ -5460,6 +5528,8 @@ function renderTeamResults(){
           Number(team.racePosition || 0) ===
           Number(firstTeam.racePosition || 0)
         ) &&
+        Number(team.points || 0) ===
+        Number(firstTeam.points || 0) &&
         Number(team.correct || 0) ===
         Number(firstTeam.correct || 0) &&
         Number(team.accuracy || 0) ===
@@ -5508,7 +5578,9 @@ function renderTeamResults(){
                       0
                     )
                   }/${RACE_TOTAL_STEPS}`
-                : `${team.correct} Correct`
+                : (Number(team.points || 0) > 0
+                    ? `🏆 ${Number(team.points || 0)} Points • ${team.correct} Correct`
+                    : `${team.correct} Correct`)
             }
           </div>
 
@@ -7901,360 +7973,499 @@ function clearWheelState(){
   WHEEL_IS_SPINNING = false;
   WHEEL_IS_DECELERATING = false;
   WHEEL_SELECTED_INDEX = -1;
+  WHEEL_CURRENT_LOCAL_INDEX = -1;
   WHEEL_POINTS_MULTIPLIER = 1;
 
-  const disc =
-    document.getElementById(
-      "wheelDisc"
-    );
-
+  const disc = document.getElementById("wheelDisc");
   if(disc){
     disc.style.transition = "none";
   }
 }
 
+function getWheelQuestionKey(question){
+  return String(
+    question?.questionId ||
+    question?.id ||
+    `wheel_${CURRENT_QUESTION_INDEX}`
+  ).trim();
+}
+
+function getWheelScoreMode(question){
+  const raw = String(
+    question?.wheelScoreMode ||
+    question?.wheelScoringMethod ||
+    question?.scoringMethod ||
+    "correct_wrong"
+  ).trim().toLowerCase();
+
+  return ["manual_points","manual","points","team_points"].includes(raw)
+    ? "manual_points"
+    : "correct_wrong";
+}
+
+function initializeWheelQuestionState(question){
+  const key = getWheelQuestionKey(question);
+
+  if(WHEEL_ACTIVE_QUESTION_ID === key && WHEEL_REMAINING_INDICES.length){
+    return;
+  }
+
+  WHEEL_ACTIVE_QUESTION_ID = key;
+  WHEEL_REMAINING_INDICES = (Array.isArray(question?.answers) ? question.answers : [])
+    .map((item,index)=>String(item?.text || "").trim() ? index : -1)
+    .filter(index=>index >= 0);
+
+  WHEEL_SELECTED_INDEX = -1;
+  WHEEL_CURRENT_LOCAL_INDEX = -1;
+  WHEEL_ROTATION = 0;
+  WHEEL_POINTS_MULTIPLIER = 1;
+  WHEEL_IS_SPINNING = false;
+  WHEEL_IS_DECELERATING = false;
+}
+
+function getWheelRemainingEntries(question){
+  const answers = Array.isArray(question?.answers) ? question.answers : [];
+
+  return WHEEL_REMAINING_INDICES
+    .map(originalIndex=>({
+      originalIndex,
+      item:answers[originalIndex]
+    }))
+    .filter(entry=>entry.item && String(entry.item?.text || "").trim());
+}
+
 function getWheelItems(){
-
-  const question =
-    CURRENT_ACTIVITY
-      ?.questions?.[CURRENT_QUESTION_INDEX];
-
-  return Array.isArray(question?.answers)
-    ? question.answers.filter(item=>
-        String(item?.text || "").trim()
-      )
-    : [];
+  const question = CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX];
+  return getWheelRemainingEntries(question).map(entry=>entry.item);
 }
 
 function getWheelColors(count){
-
   const colors = [
-    "#164478",
-    "#f4b942",
-    "#17a673",
-    "#e74c3c",
-    "#7f5af0",
-    "#00a8cc",
-    "#f08a24",
-    "#34495e",
-    "#c0392b",
-    "#16a085",
-    "#8e44ad",
-    "#2980b9"
+    "#164478","#f4b942","#17a673","#e74c3c","#7f5af0","#00a8cc",
+    "#f08a24","#34495e","#c0392b","#16a085","#8e44ad","#2980b9"
   ];
 
   return Array.from(
-    {length:count},
-    (_,index)=>
-      colors[index % colors.length]
+    {length:Math.max(1,count)},
+    (_,index)=>colors[index % colors.length]
   );
 }
 
-function renderWheelQuestion(
-  question,
-  answersBox
-){
+function drawRemainingWheel(question){
+  const entries = getWheelRemainingEntries(question);
+  const disc = document.getElementById("wheelDisc");
+  const remaining = document.getElementById("wheelRemainingText");
+  const spinButton = document.getElementById("wheelSpinBtn");
 
+  if(remaining){
+    remaining.textContent = entries.length === 1
+      ? "1 question remaining — final team question"
+      : `${entries.length} wheel questions remaining`;
+  }
+
+  if(!disc) return;
+
+  const count = Math.max(1,entries.length);
+  const colors = getWheelColors(count);
+  const step = 360 / count;
+
+  const gradient = entries.length
+    ? entries.map((_,i)=>`${colors[i]} ${i*step}deg ${(i+1)*step}deg`).join(",")
+    : "#d9e3ec 0deg 360deg";
+
+  disc.style.transition = "none";
+  disc.style.transform = "rotate(0deg)";
+  WHEEL_ROTATION = 0;
+  disc.style.background = `conic-gradient(${gradient})`;
+
+  disc.innerHTML = entries.length
+    ? `${entries.map((entry,i)=>`
+        <div class="wheel-label" style="transform:rotate(${i*step + step/2 - 90}deg) translateY(-50%)">
+          ${esc(entry.item.text)}
+        </div>
+      `).join("")}<div class="wheel-center">🎡</div>`
+    : `<div class="wheel-center">✓</div>`;
+
+  void disc.offsetWidth;
+  disc.style.transition = "transform 4.4s cubic-bezier(.12,.72,.12,1)";
+
+  if(spinButton){
+    spinButton.classList.toggle("hidden",entries.length === 0);
+    spinButton.disabled = entries.length === 0;
+    spinButton.innerHTML = entries.length === 1
+      ? '<i class="fa-solid fa-flag"></i> Show Last Question'
+      : '<i class="fa-solid fa-rotate"></i> Spin Wheel';
+  }
+}
+
+function updateWheelManualTeamLabel(){
+  const team = getCurrentTeam();
+  const label = document.getElementById("wheelManualCurrentTeam");
+  if(label){
+    label.textContent = team
+      ? `🏆 Enter points earned by ${team.name}`
+      : "🏆 Enter earned points";
+  }
+}
+
+function renderWheelQuestion(question,answersBox){
   clearWheelState();
+  initializeWheelQuestionState(question);
 
-  const items =
-    Array.isArray(question.answers)
-      ? question.answers.filter(item=>
-          String(item?.text || "").trim()
-        )
-      : [];
+  const entries = getWheelRemainingEntries(question);
+  answersBox.className = "wheel-game";
 
-  answersBox.className =
-    "wheel-game";
-
-  WHEEL_SELECTED_INDEX = -1;
-  WHEEL_IS_SPINNING = false;
-  WHEEL_POINTS_MULTIPLIER = 1;
-
-  if(items.length < 2){
-
+  if(!entries.length){
     answersBox.innerHTML = `
-      <div class="feedback bad">
-        This wheel requires at least two sections.
-      </div>
+      <div class="feedback good">✅ All Wheel of Fortune questions are completed.</div>
     `;
-
+    ANSWER_LOCKED = true;
+    showNextQuestionButton();
     return;
   }
 
-  const colors =
-    getWheelColors(items.length);
-
-  const step =
-    360 / items.length;
-
-  const gradient =
-    items.map(
-      (_,index)=>
-        `${colors[index]} ${index * step}deg ${(index + 1) * step}deg`
-    ).join(",");
+  const mode = getWheelScoreMode(question);
 
   answersBox.innerHTML = `
     <div class="wheel-wrap">
-
-      <div class="wheel-pointer">
-        ▼
+      <div class="wheel-pointer">▼</div>
+      <div id="wheelDisc" class="wheel-disc">
+        <div class="wheel-center">🎡</div>
       </div>
-
-      <div
-        id="wheelDisc"
-        class="wheel-disc"
-        style="background:conic-gradient(${gradient})">
-
-        ${
-          items.map((item,index)=>`
-            <div
-              class="wheel-label"
-              style="
-              transform:
-  rotate(${index * step + step / 2 - 90}deg)
-  translateY(-50%);
-              ">
-              ${esc(item.text)}
-            </div>
-          `).join("")
-        }
-
-        <div class="wheel-center">
-          🎡
-        </div>
-
-      </div>
-
     </div>
+
+    <div id="wheelRemainingText" class="wheel-remaining"></div>
 
     <div class="wheel-controls">
-
-      <button
-        id="wheelSpinBtn"
-        class="btn btn-gold"
-        type="button"
-        onclick="spinWheel()">
-
-        <i class="fa-solid fa-rotate"></i>
-        Spin Wheel
-
+      <button id="wheelSpinBtn" class="btn btn-gold" type="button" onclick="spinWheel()">
+        <i class="fa-solid fa-rotate"></i> Spin Wheel
       </button>
 
-      <button
-        id="wheelCorrectBtn"
-        class="btn wheel-correct hidden"
-        type="button"
-        onclick="gradeWheelAnswer(true)">
-
-        <i class="fa-solid fa-check"></i>
-        Correct
-
-      </button>
-
-      <button
-        id="wheelWrongBtn"
-        class="btn wheel-wrong hidden"
-        type="button"
-        onclick="gradeWheelAnswer(false)">
-
-        <i class="fa-solid fa-xmark"></i>
-        Wrong
-
-      </button>
-
+      ${mode === "correct_wrong" ? `
+        <button id="wheelCorrectBtn" class="btn wheel-correct hidden" type="button" onclick="gradeWheelAnswer(true)">
+          <i class="fa-solid fa-check"></i> Correct
+        </button>
+        <button id="wheelWrongBtn" class="btn wheel-wrong hidden" type="button" onclick="gradeWheelAnswer(false)">
+          <i class="fa-solid fa-xmark"></i> Wrong
+        </button>
+      ` : ""}
     </div>
 
-    <div
-      id="wheelResult"
-      class="wheel-result-card hidden">
-    </div>
+    ${mode === "manual_points" ? `
+      <div id="wheelManualScore" class="wheel-manual-score hidden">
+        <div id="wheelManualCurrentTeam" class="wheel-team-now"></div>
+        <div class="wheel-manual-score-row">
+          <div>
+            <label>Points earned for this question</label>
+            <input id="wheelManualPoints" type="number" min="0" step="1" value="1" inputmode="numeric">
+          </div>
+          <button class="btn btn-primary" type="button" onclick="saveWheelManualPoints()">
+            <i class="fa-solid fa-check"></i> Save Points & Continue
+          </button>
+        </div>
+      </div>
+    ` : ""}
 
-    <div
-      class="play-summary-info"
-      style="margin-top:13px">
+    <div id="wheelResult" class="wheel-result-card hidden"></div>
 
-      Spin the wheel, let the student complete the selected challenge,
-      then choose Correct or Wrong.
-
+    <div class="play-summary-info" style="margin-top:13px">
+      ${mode === "manual_points"
+        ? "After every selected wheel question, the trainer must enter the earned points. The selected question is then removed from the wheel."
+        : "After every selected wheel question, mark it Correct or Wrong. The selected question is then removed from the wheel."}
     </div>
   `;
+
+  drawRemainingWheel(question);
+  updateWheelManualTeamLabel();
 }
 
 function spinWheel(){
-
-  if(ANSWER_LOCKED || ACTIVITY_FINISHED || WHEEL_IS_DECELERATING){
+  if(
+    ANSWER_LOCKED ||
+    ACTIVITY_FINISHED ||
+    WHEEL_IS_DECELERATING ||
+    WHEEL_SELECTED_INDEX >= 0
+  ){
     return;
   }
 
-  const items = getWheelItems();
-  if(items.length < 2){
-    alert("This wheel requires at least two sections.");
-    return;
-  }
+  const question = CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX];
+  initializeWheelQuestionState(question);
+  const entries = getWheelRemainingEntries(question);
+
+  if(!entries.length) return;
 
   const button = document.getElementById("wheelSpinBtn");
   const disc = document.getElementById("wheelDisc");
-  const correctButton = document.getElementById("wheelCorrectBtn");
-  const wrongButton = document.getElementById("wheelWrongBtn");
   const result = document.getElementById("wheelResult");
   const answersBox = document.getElementById("studentAnswers");
+
   if(!button || !disc) return;
 
-  if(!WHEEL_IS_SPINNING){
-    if(!WHEEL_TIMER_STARTED){ WHEEL_TIMER_STARTED=true; startActivityTimer(); }
-    WHEEL_IS_SPINNING=true;
-    WHEEL_LAST_FRAME_TIME=0;
-    correctButton?.classList.add("hidden");
-    wrongButton?.classList.add("hidden");
-    result?.classList.add("hidden");
-    answersBox?.classList.remove("wheel-question-view");
-    button.innerHTML='<i class="fa-solid fa-stop"></i> Stop Wheel';
-    disc.style.transition="none";
-    playWheelSpinSound();
+  if(!WHEEL_TIMER_STARTED){
+    WHEEL_TIMER_STARTED = true;
+    startActivityTimer();
+  }
 
-    function rotateContinuously(timestamp){
-      if(!WHEEL_IS_SPINNING || WHEEL_IS_DECELERATING) return;
-      if(!WHEEL_LAST_FRAME_TIME) WHEEL_LAST_FRAME_TIME=timestamp;
-      const elapsed=Math.min(40,timestamp-WHEEL_LAST_FRAME_TIME);
-      WHEEL_LAST_FRAME_TIME=timestamp;
-      WHEEL_ROTATION+=(WHEEL_SPEED_DEG_PER_SECOND*elapsed)/1000;
-      disc.style.transform=`rotate(${WHEEL_ROTATION}deg)`;
-      WHEEL_ANIMATION_FRAME=requestAnimationFrame(rotateContinuously);
+  WHEEL_IS_SPINNING = true;
+  WHEEL_IS_DECELERATING = true;
+  button.disabled = true;
+  button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Spinning...';
+
+  document.getElementById("wheelCorrectBtn")?.classList.add("hidden");
+  document.getElementById("wheelWrongBtn")?.classList.add("hidden");
+  document.getElementById("wheelManualScore")?.classList.add("hidden");
+  result?.classList.add("hidden");
+  answersBox?.classList.remove("wheel-question-view");
+
+  const localIndex = entries.length === 1
+    ? 0
+    : Math.floor(Math.random() * entries.length);
+
+  WHEEL_CURRENT_LOCAL_INDEX = localIndex;
+  WHEEL_SELECTED_INDEX = entries[localIndex].originalIndex;
+
+  const step = 360 / entries.length;
+  const centerAngle = localIndex * step + step / 2;
+  const extraTurns = 4 + Math.floor(Math.random()*2);
+  WHEEL_ROTATION += extraTurns * 360 + (360 - centerAngle);
+
+  disc.style.transform = `rotate(${WHEEL_ROTATION}deg)`;
+  playWheelSpinSound();
+
+  WHEEL_STOP_TIMEOUT = setTimeout(()=>{
+    WHEEL_STOP_TIMEOUT = null;
+    WHEEL_IS_SPINNING = false;
+    WHEEL_IS_DECELERATING = false;
+
+    const selected = question?.answers?.[WHEEL_SELECTED_INDEX];
+    if(!selected) return;
+
+    const doublePoints = clean(selected?.text || "").includes("double points");
+    WHEEL_POINTS_MULTIPLIER = doublePoints ? 2 : 1;
+
+    if(result){
+      result.innerHTML = `
+        <div class="wheel-result-category">
+          ${doublePoints ? "✨" : "🎯"} ${esc(selected?.text || "Selected Challenge")}
+          ${doublePoints && getWheelScoreMode(question) === "correct_wrong" ? " — 2 Points" : ""}
+        </div>
+        <div class="wheel-result-question">
+          ${esc(selected?.right || selected?.challenge || selected?.question || "Complete the selected challenge.")}
+        </div>
+        ${selected?.image ? `<img src="${esc(selected.image)}" alt="Wheel challenge">` : ""}
+      `;
+      result.classList.remove("hidden");
     }
-    WHEEL_ANIMATION_FRAME=requestAnimationFrame(rotateContinuously);
+
+    answersBox?.classList.add("wheel-question-view");
+
+    if(getWheelScoreMode(question) === "manual_points"){
+      updateWheelManualTeamLabel();
+      const manualBox = document.getElementById("wheelManualScore");
+      const pointsInput = document.getElementById("wheelManualPoints");
+      manualBox?.classList.remove("hidden");
+      if(pointsInput){
+        pointsInput.value = "1";
+        setTimeout(()=>pointsInput.focus(),80);
+      }
+    }else{
+      document.getElementById("wheelCorrectBtn")?.classList.remove("hidden");
+      document.getElementById("wheelWrongBtn")?.classList.remove("hidden");
+    }
+
+    button.classList.add("hidden");
+    playWheelStopSound();
+    result?.scrollIntoView({behavior:"smooth",block:"center"});
+  },4400);
+}
+
+function recordWheelSectionResult({isCorrect=false,points=0}={}){
+  const question = CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX];
+  const selected = question?.answers?.[WHEEL_SELECTED_INDEX];
+  const team = getCurrentTeam();
+  if(!question || !selected || !team) return;
+
+  LAST_ANSWERED_TEAM_ID = team.id || "";
+
+  team.answered = Number(team.answered || 0) + 1;
+  team.points = Number(team.points || 0) + Math.max(0,Number(points || 0));
+
+  if(isCorrect){
+    team.correct = Number(team.correct || 0) + 1;
+    moveCurrentTeamInRace(Math.max(1,Number(points || 1)));
+  }
+
+  const actor = getActorData();
+  const baseId = getStableQuestionId(question,CURRENT_QUESTION_INDEX);
+  const sectionId = `${baseId}__wheel_${WHEEL_SELECTED_INDEX}`;
+
+  ACTIVITY_ANSWER_LOG.push({
+    questionId:sectionId,
+    parentQuestionId:baseId,
+    questionNumber:CURRENT_QUESTION_INDEX + 1,
+    wheelSectionIndex:WHEEL_SELECTED_INDEX,
+    type:"wheel",
+    question:String(selected?.right || selected?.question || question?.text || "Wheel of Fortune").trim(),
+    questionText:String(selected?.right || selected?.question || question?.text || "Wheel of Fortune").trim(),
+    wheelCategory:String(selected?.text || "").trim(),
+    participantAnswer:getWheelScoreMode(question) === "manual_points"
+      ? `${Number(points || 0)} points awarded`
+      : (isCorrect ? "Marked Correct" : "Marked Wrong"),
+    studentAnswer:getWheelScoreMode(question) === "manual_points"
+      ? `${Number(points || 0)} points awarded`
+      : (isCorrect ? "Marked Correct" : "Marked Wrong"),
+    correctAnswer:"Trainer evaluation",
+    expectedAnswer:"Trainer evaluation",
+    correct:Boolean(isCorrect),
+    isCorrect:Boolean(isCorrect),
+    awardedPoints:Math.max(0,Number(points || 0)),
+    teamId:team.id || "",
+    teamName:team.name || "",
+    solvedByName:String(actor?.name || actor?.username || "Trainer").trim(),
+    solvedByRole:String(actor?.role || "trainer").trim()
+  });
+
+  renderLiveTeamBoard();
+}
+
+function finishCurrentWheelSection({isCorrect=false,points=0,message=""}={}){
+  const question = CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX];
+  const selectedIndex = WHEEL_SELECTED_INDEX;
+
+  if(selectedIndex < 0) return;
+
+  recordWheelSectionResult({isCorrect,points});
+
+  WHEEL_REMAINING_INDICES = WHEEL_REMAINING_INDICES.filter(
+    index=>index !== selectedIndex
+  );
+
+  WHEEL_SELECTED_INDEX = -1;
+  WHEEL_CURRENT_LOCAL_INDEX = -1;
+  WHEEL_POINTS_MULTIPLIER = 1;
+
+  const feedback = document.getElementById("feedback");
+  if(feedback){
+    feedback.textContent = message;
+    feedback.className = `feedback ${isCorrect || points > 0 ? "good" : "bad"}`;
+  }
+
+  document.getElementById("wheelCorrectBtn")?.classList.add("hidden");
+  document.getElementById("wheelWrongBtn")?.classList.add("hidden");
+  document.getElementById("wheelManualScore")?.classList.add("hidden");
+  document.getElementById("wheelResult")?.classList.add("hidden");
+
+  const hasMoreWheelQuestions = WHEEL_REMAINING_INDICES.length > 0;
+
+  if(hasMoreWheelQuestions){
+    /* IMPORTANT: stay in the SAME Wheel question. Do not show Next Question. */
+    advanceTeamTurn();
+    renderCurrentTeam();
+    renderLiveTeamBoard();
+
+    ANSWER_LOCKED = false;
+    drawRemainingWheel(question);
+    updateWheelManualTeamLabel();
+
+    const spinButton = document.getElementById("wheelSpinBtn");
+    spinButton?.classList.remove("hidden");
+
+    if(feedback){
+      feedback.textContent += ` • ${WHEEL_REMAINING_INDICES.length} remaining.`;
+    }
+
     return;
   }
 
-  /* الضغط الثاني يبدأ تباطؤًا واقعيًا، ولا يظهر السؤال إلا بعد توقف العجلة تمامًا. */
-  WHEEL_IS_SPINNING=false;
-  WHEEL_IS_DECELERATING=true;
-  if(WHEEL_ANIMATION_FRAME) cancelAnimationFrame(WHEEL_ANIMATION_FRAME);
-  WHEEL_ANIMATION_FRAME=null;
-  button.disabled=true;
-  button.innerHTML='<i class="fa-solid fa-hourglass-half"></i> Slowing Down...';
+  /* Only after the LAST wheel section is graded do we allow the next activity question. */
+  ANSWER_LOCKED = true;
+  stopActivityTimer();
 
-  const startRotation=WHEEL_ROTATION;
-  const extraTurns=3+Math.random()*2;
-  const extraDegrees=extraTurns*360+Math.random()*360;
-  const finalRotation=startRotation+extraDegrees;
-  const duration=3200+Math.random()*900;
-  const startTime=performance.now();
-
-  function easeOutQuint(t){ return 1-Math.pow(1-t,5); }
-  function decelerate(now){
-    const progress=Math.min(1,(now-startTime)/duration);
-    WHEEL_ROTATION=startRotation+(finalRotation-startRotation)*easeOutQuint(progress);
-    disc.style.transform=`rotate(${WHEEL_ROTATION}deg)`;
-    if(progress<1){ WHEEL_ANIMATION_FRAME=requestAnimationFrame(decelerate); return; }
-
-    WHEEL_ANIMATION_FRAME=null;
-    WHEEL_IS_DECELERATING=false;
-    const step=360/items.length;
-    const normalized=((WHEEL_ROTATION%360)+360)%360;
-    const pointerAngle=(360-normalized)%360;
-    WHEEL_SELECTED_INDEX=Math.floor(pointerAngle/step)%items.length;
-    const selected=items[WHEEL_SELECTED_INDEX];
-    const doublePoints=clean(selected?.text||"").includes("double points");
-    WHEEL_POINTS_MULTIPLIER=doublePoints?2:1;
-    playWheelStopSound();
-
-    if(result){
-      result.innerHTML=`<div class="wheel-result-category">${doublePoints?"✨":"🎯"} ${esc(selected?.text||"Selected Challenge")} ${doublePoints?" — 2 Points":""}</div><div class="wheel-result-question">${esc(selected?.right||selected?.challenge||selected?.question||"Complete the selected challenge.")}</div>${selected?.image?`<img src="${esc(selected.image)}" alt="Wheel challenge">`:""}`;
-      result.classList.remove("hidden");
-    }
-    answersBox?.classList.add("wheel-question-view");
-    correctButton?.classList.remove("hidden");
-    wrongButton?.classList.remove("hidden");
-    button.classList.add("hidden");
-    result?.scrollIntoView({behavior:"smooth",block:"center"});
+  if(feedback){
+    feedback.textContent = getWheelScoreMode(question) === "manual_points"
+      ? "🏁 All Wheel of Fortune questions are complete. Continue to the next activity question."
+      : "🏁 All Wheel of Fortune questions are complete. Continue to the next activity question.";
+    feedback.className = "feedback good";
   }
-  WHEEL_ANIMATION_FRAME=requestAnimationFrame(decelerate);
+
+  showNextQuestionButton();
 }
 
 function gradeWheelAnswer(isCorrect){
-
   if(
     ANSWER_LOCKED ||
     ACTIVITY_FINISHED ||
     WHEEL_IS_SPINNING ||
+    WHEEL_IS_DECELERATING ||
     WHEEL_SELECTED_INDEX < 0
   ){
     return;
   }
 
-  ANSWER_LOCKED = true;
-
-  const feedback =
-    document.getElementById(
-      "feedback"
-    );
-
-  feedback.className =
-    "feedback";
+  const awarded = isCorrect ? WHEEL_POINTS_MULTIPLIER : 0;
 
   if(isCorrect){
-
-    CURRENT_SCORE +=
-      WHEEL_POINTS_MULTIPLIER;
-
-    feedback.textContent =
-      WHEEL_POINTS_MULTIPLIER === 2
-        ? "🎉 Correct! Double points awarded."
-        : "🎉 Correct wheel challenge!";
-
-    feedback.classList.add(
-      "good"
-    );
-
+    CURRENT_SCORE += awarded;
     launchSmallConfetti();
     playCorrectSound();
-
   }else{
-
-    feedback.textContent =
-      "❌ The wheel challenge was marked incorrect.";
-
-    feedback.classList.add(
-      "bad"
-    );
-
     playWrongSound();
-
   }
 
-  recordCurrentTeamAnswer(
-    Boolean(isCorrect),
-    isCorrect
-      ? WHEEL_POINTS_MULTIPLIER
-      : 1
-  );
+  const scorePill = document.getElementById("scorePill");
+  if(scorePill){
+    scorePill.textContent = `⭐ ${CURRENT_SCORE}`;
+  }
 
-  WHEEL_POINTS_MULTIPLIER = 1;
-
-  [
-    "wheelSpinBtn",
-    "wheelCorrectBtn",
-    "wheelWrongBtn"
-  ].forEach(id=>{
-
-    const button =
-      document.getElementById(id);
-
-    if(button){
-      button.disabled = true;
-    }
-
+  finishCurrentWheelSection({
+    isCorrect:Boolean(isCorrect),
+    points:awarded,
+    message:isCorrect
+      ? (awarded === 2
+          ? "🎉 Correct! 2 points awarded. Spin for the next team."
+          : "🎉 Correct! 1 point awarded. Spin for the next team.")
+      : "❌ Marked wrong. 0 points awarded. Spin for the next team."
   });
+}
 
-  document
-    .getElementById("scorePill")
-    .textContent =
-      `⭐ ${CURRENT_SCORE}`;
+function saveWheelManualPoints(){
+  if(
+    ANSWER_LOCKED ||
+    ACTIVITY_FINISHED ||
+    WHEEL_IS_SPINNING ||
+    WHEEL_IS_DECELERATING ||
+    WHEEL_SELECTED_INDEX < 0
+  ){
+    return;
+  }
 
-  stopActivityTimer();
+  const input = document.getElementById("wheelManualPoints");
+  const points = Number(input?.value);
+  const team = getCurrentTeam();
 
-  showNextQuestionButton();
+  if(!Number.isFinite(points) || points < 0){
+    alert("Enter a valid points value (0 or more).");
+    input?.focus();
+    return;
+  }
+
+  CURRENT_SCORE += points;
+
+  const scorePill = document.getElementById("scorePill");
+  if(scorePill){
+    scorePill.textContent = `⭐ ${CURRENT_SCORE}`;
+  }
+
+  if(points > 0){
+    playCorrectSound();
+  }
+
+  finishCurrentWheelSection({
+    isCorrect:points > 0,
+    points,
+    message:`✅ ${team?.name || "Team"}: ${points} point${points === 1 ? "" : "s"} saved. Spin for the next team.`
+  });
 }
 
 function playWheelSpinSound(){
@@ -10300,6 +10511,13 @@ function nextQuestionManually(){
     )
     .trim()
     .toLowerCase();
+
+  if(answeredType === "wheel"){
+    WHEEL_ACTIVE_QUESTION_ID = "";
+    WHEEL_REMAINING_INDICES = [];
+    WHEEL_SELECTED_INDEX = -1;
+    WHEEL_CURRENT_LOCAL_INDEX = -1;
+  }
 
   /*
     Every completed question passes the turn to the next active
