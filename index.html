@@ -222,6 +222,12 @@ button{font-family:inherit;cursor:pointer}
   border-color:#f4cf58;
 }
 
+.game-wheelmcq{
+  color:#6d5200;
+  background:#fff7d9;
+  border-color:#e8c94f;
+}
+
 .game-random{
   color:#6c3483;
   background:#f4e8fb;
@@ -1262,57 +1268,118 @@ button{font-family:inherit;cursor:pointer}
   color:#fff;
 }
 
-.wheel-remaining{
-  margin:10px auto 4px;
-  font-weight:900;
-  color:var(--blue);
-}
-
-.wheel-manual-score{
-  width:min(620px,100%);
-  margin:16px auto 0;
-  padding:15px;
-  border:2px solid var(--gold);
-  border-radius:18px;
-  background:#fffaf0;
-}
-
-.wheel-manual-score .wheel-team-now{
-  font-size:18px;
-  font-weight:900;
-  color:var(--blue);
-  margin-bottom:10px;
-}
-
-.wheel-manual-score-row{
-  display:flex;
-  justify-content:center;
-  align-items:end;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.wheel-manual-score-row label{
-  display:block;
-  text-align:left;
-  font-size:12px;
-  font-weight:900;
-  margin-bottom:5px;
-}
-
-.wheel-manual-score-row input{
-  width:160px;
-  max-width:100%;
-  border:1px solid var(--border);
-  border-radius:12px;
-  padding:11px 12px;
-  font:inherit;
-  font-weight:900;
-}
-
 @media(max-width:600px){
   .wheel-label{font-size:11px}
   .wheel-pointer{font-size:40px}
+}
+
+
+/* =====================================
+   WHEEL + MULTIPLE CHOICE
+===================================== */
+.wheel-mcq-game{text-align:center}
+.wheel-mcq-instruction{
+  margin:0 auto 12px;
+  color:var(--blue);
+  font-size:16px;
+  font-weight:900;
+  line-height:1.7;
+}
+.wheel-mcq-remaining{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:7px;
+  margin:10px auto 16px;
+}
+.wheel-mcq-number-chip{
+  min-width:38px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#edf4fa;
+  color:var(--blue);
+  font-weight:900;
+  border:1px solid #cbddeb;
+}
+.wheel-mcq-question-card{
+  margin:18px auto 0;
+  max-width:820px;
+  padding:22px;
+  border:2px solid var(--gold);
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 16px 35px rgba(22,68,120,.14);
+  animation:wheelMcqReveal .35s ease;
+}
+.wheel-mcq-question-number{font-size:15px;font-weight:900;color:#8a6500;margin-bottom:6px}
+.wheel-mcq-question-text{font-size:24px;line-height:1.6;font-weight:900;color:var(--blue);margin-bottom:16px}
+.wheel-mcq-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.wheel-mcq-option{
+  min-height:90px;
+  border:2px solid var(--border);
+  border-radius:17px;
+  background:#fff;
+  padding:13px;
+  font-size:17px;
+  font-weight:900;
+  color:var(--text);
+  transition:.18s;
+}
+.wheel-mcq-option:hover:not(:disabled){transform:translateY(-2px);border-color:var(--blue2)}
+.wheel-mcq-option.correct{border-color:var(--green);background:#eafaf4}
+.wheel-mcq-option.wrong{border-color:var(--red);background:#fff0ee}
+.wheel-mcq-option img{width:100%;height:130px;object-fit:contain;border-radius:10px;margin-bottom:7px;background:#f3f7fb}
+.wheel-mcq-media{margin:0 auto 16px;max-width:620px}
+.wheel-mcq-media img,.wheel-mcq-media video{max-width:100%;max-height:280px;border-radius:14px}
+.wheel-mcq-media audio{width:100%}
+.wheel-mcq-score-panel{
+  margin:16px auto 0;
+  max-width:720px;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:#f8fbfd;
+}
+.wheel-mcq-points-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(120px,180px) auto;
+  gap:10px;
+  align-items:end;
+}
+.wheel-mcq-points-row label{display:block;text-align:left;font-weight:900;font-size:12px;margin-bottom:5px}
+.wheel-mcq-points-row input{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:11px 12px;
+  background:#fff;
+  font-family:inherit;
+  font-weight:800;
+}
+.wheel-mcq-current-team{
+  min-height:46px;
+  display:flex;
+  align-items:center;
+  padding:10px 13px;
+  border-radius:12px;
+  background:#fff8dd;
+  color:#765500;
+  font-weight:900;
+  border:1px solid #efd276;
+}
+.wheel-mcq-points-saved{
+  margin-top:10px;
+  color:var(--green);
+  font-weight:900;
+}
+@keyframes wheelMcqReveal{
+  from{opacity:0;transform:translateY(12px) scale(.985)}
+  to{opacity:1;transform:none}
+}
+@media(max-width:650px){
+  .wheel-mcq-options{grid-template-columns:1fr}
+  .wheel-mcq-points-row{grid-template-columns:1fr}
+  .wheel-mcq-question-text{font-size:20px}
 }
 
 
@@ -2835,6 +2902,7 @@ button{font-family:inherit;cursor:pointer}
 
             <option value="">🎮 All Activities</option>
             <option value="wheel">🎡 Wheel of Fortune</option>
+            <option value="wheelmcq">🎡✅ Wheel + Multiple Choice</option>
             <option value="random">🖼️ Random Image</option>
             <option value="balloon">🎈 Balloon Pop</option>
             <option value="mystery">🎁 Mystery Box</option>
@@ -3112,10 +3180,13 @@ let WHEEL_LAST_FRAME_TIME = 0;
 let WHEEL_SPEED_DEG_PER_SECOND = 520;
 let WHEEL_IS_DECELERATING = false;
 
-/* Wheel sections stay inside the same Wheel question until all are completed. */
-let WHEEL_REMAINING_INDICES = [];
-let WHEEL_ACTIVE_QUESTION_ID = "";
-let WHEEL_CURRENT_LOCAL_INDEX = -1;
+/* Wheel + Multiple Choice state */
+let WHEEL_MCQ_IS_SPINNING = false;
+let WHEEL_MCQ_SELECTED_QUESTION_INDEX = -1;
+let WHEEL_MCQ_SELECTED_ANSWER_INDEX = -1;
+let WHEEL_MCQ_ROTATION = 0;
+let WHEEL_MCQ_NUMBER_MAP = new Map();
+let WHEEL_MCQ_POINTS_AWARDED = false;
 
 /*
   يمنع تكرار صوت حركة الصور بسرعة زائدة جدًا.
@@ -4287,6 +4358,12 @@ function getGameTypeInfo(type){
       className:"game-wheel"
     },
 
+    wheelmcq:{
+      label:"Wheel + Multiple Choice",
+      icon:"fa-solid fa-dharmachakra",
+      className:"game-wheelmcq"
+    },
+
     random:{
       label:"Random Image",
       icon:"fa-solid fa-images",
@@ -5050,8 +5127,8 @@ function confirmTeamSetup(){
       name,
       correct:0,
       answered:0,
-      points:0,
       assigned:0,
+      points:0,
       racePosition:0,
       bombEliminated:false,
       bombExploded:false,
@@ -5061,26 +5138,20 @@ function confirmTeamSetup(){
   );
 
   /*
-    Calculate team turns using real playable items.
-    A Wheel of Fortune question contributes one turn for EACH
-    wheel section, because every section is played by a team.
+    Calculate how many questions are assigned
+    to every team using round-robin distribution.
   */
-  let assignmentTurnIndex = 0;
 
-  CURRENT_ACTIVITY.questions.forEach(question=>{
-    const type = String(question?.type || "").trim().toLowerCase();
-    const turns = type === "wheel"
-      ? Math.max(1,(Array.isArray(question?.answers)
-          ? question.answers.filter(item=>String(item?.text || "").trim()).length
-          : 0))
-      : 1;
+  CURRENT_ACTIVITY.questions.forEach(
+    (_,questionIndex)=>{
 
-    for(let turn=0; turn<turns; turn++){
-      const teamIndex = assignmentTurnIndex % TEAM_COUNT;
+      const teamIndex =
+        questionIndex %
+        TEAM_COUNT;
+
       TEAMS[teamIndex].assigned++;
-      assignmentTurnIndex++;
     }
-  });
+  );
 
   CURRENT_QUESTION_INDEX = 0;
   CURRENT_SCORE = 0;
@@ -5092,9 +5163,7 @@ function confirmTeamSetup(){
   CURRENT_ORDER_SELECTION = [];
   ACTIVITY_ANSWER_LOG = [];
   CURRENT_USAGE_ID = "";
-  WHEEL_ACTIVE_QUESTION_ID = "";
-  WHEEL_REMAINING_INDICES = [];
-  WHEEL_SELECTED_INDEX = -1;
+  resetWheelMcqState();
 
   document
     .getElementById("teamSetupArea")
@@ -5272,7 +5341,8 @@ function getSelectedAnswerForLog(question){
     ".student-answer.correct, .student-answer.wrong, " +
     ".match-image-option.selected, .match-image-option.correct, .match-image-option.wrong, " +
     ".balloon-option.correct, .balloon-option.wrong, " +
-    ".mystery-option.correct, .mystery-option.wrong"
+    ".mystery-option.correct, .mystery-option.wrong, " +
+    ".wheel-mcq-option.correct, .wheel-mcq-option.wrong"
   );
 
   if(selectedButton){
@@ -5284,7 +5354,7 @@ function getSelectedAnswerForLog(question){
     ).trim();
   }
 
-  if(["random","wheel","balloon","mystery","bomb","text","voice"].includes(type)){
+  if(["random","wheel","wheelmcq","balloon","mystery","bomb","text","voice"].includes(type)){
     return "Marked by the trainer / game";
   }
 
@@ -5419,9 +5489,9 @@ function renderLiveTeamBoard(){
         </strong>
 
         <span>
-          🏆 ${Number(team.points || 0)} pts
-          &nbsp; | &nbsp;
           ✅ ${team.correct}
+          &nbsp; | &nbsp;
+          🎯 ${Number(team.points || 0)} pts
           &nbsp; | &nbsp;
           Answered ${team.answered}/${team.assigned}
           ${
@@ -5442,6 +5512,12 @@ function renderLiveTeamBoard(){
 function getRankedTeams(){
 
   /* Eliminated teams never appear in the final ranking. */
+  const hasWheelMcq =
+    Array.isArray(CURRENT_ACTIVITY?.questions) &&
+    CURRENT_ACTIVITY.questions.some(
+      question=>String(question?.type || "").trim().toLowerCase() === "wheelmcq"
+    );
+
   return getCompetitionTeams()
     .map(team=>({
       ...team,
@@ -5471,8 +5547,9 @@ function getRankedTeams(){
           : 0
       ) ||
 
-      Number(b.points || 0) -
-      Number(a.points || 0) ||
+      (hasWheelMcq
+        ? Number(b.points || 0) - Number(a.points || 0)
+        : 0) ||
 
       b.correct -
       a.correct ||
@@ -5521,21 +5598,29 @@ function renderTeamResults(){
     في Race Mode تتم المقارنة أولاً بمسافة السباق،
     ثم عدد الإجابات الصحيحة والدقة وعدد الإجابات.
   */
+  const hasWheelMcq =
+    Array.isArray(CURRENT_ACTIVITY?.questions) &&
+    CURRENT_ACTIVITY.questions.some(
+      question=>String(question?.type || "").trim().toLowerCase() === "wheelmcq"
+    );
+
   const winners = firstTeam
     ? ranked.filter(team=>
-        (
-          !RACE_MODE_ACTIVE ||
-          Number(team.racePosition || 0) ===
-          Number(firstTeam.racePosition || 0)
-        ) &&
-        Number(team.points || 0) ===
-        Number(firstTeam.points || 0) &&
-        Number(team.correct || 0) ===
-        Number(firstTeam.correct || 0) &&
-        Number(team.accuracy || 0) ===
-        Number(firstTeam.accuracy || 0) &&
-        Number(team.answered || 0) ===
-        Number(firstTeam.answered || 0)
+        hasWheelMcq
+          ? Number(team.points || 0) === Number(firstTeam.points || 0)
+          : (
+              (
+                !RACE_MODE_ACTIVE ||
+                Number(team.racePosition || 0) ===
+                Number(firstTeam.racePosition || 0)
+              ) &&
+              Number(team.correct || 0) ===
+              Number(firstTeam.correct || 0) &&
+              Number(team.accuracy || 0) ===
+              Number(firstTeam.accuracy || 0) &&
+              Number(team.answered || 0) ===
+              Number(firstTeam.answered || 0)
+            )
       )
     : [];
 
@@ -5578,9 +5663,11 @@ function renderTeamResults(){
                       0
                     )
                   }/${RACE_TOTAL_STEPS}`
-                : (Number(team.points || 0) > 0
-                    ? `🏆 ${Number(team.points || 0)} Points • ${team.correct} Correct`
-                    : `${team.correct} Correct`)
+                : (
+                    hasWheelMcq
+                      ? `🎯 ${Number(team.points || 0)} Points`
+                      : `${team.correct} Correct`
+                  )
             }
           </div>
 
@@ -7367,7 +7454,8 @@ function renderStudentQuestion(){
   const revealMediaAfterSelection =
     [
       "balloon",
-      "mystery"
+      "mystery",
+      "wheelmcq"
     ].includes(
       String(type)
         .trim()
@@ -7491,6 +7579,13 @@ function renderStudentQuestion(){
       question,
       answersBox
     );
+    return;
+  }
+
+  if(type === "wheelmcq"){
+    document.getElementById("gameQuestion").textContent =
+      "🎡 Spin the wheel to select a question number";
+    renderWheelMcqQuestion(question,answersBox);
     return;
   }
 
@@ -7973,499 +8068,628 @@ function clearWheelState(){
   WHEEL_IS_SPINNING = false;
   WHEEL_IS_DECELERATING = false;
   WHEEL_SELECTED_INDEX = -1;
-  WHEEL_CURRENT_LOCAL_INDEX = -1;
   WHEEL_POINTS_MULTIPLIER = 1;
 
-  const disc = document.getElementById("wheelDisc");
+  const disc =
+    document.getElementById(
+      "wheelDisc"
+    );
+
   if(disc){
     disc.style.transition = "none";
   }
 }
 
-function getWheelQuestionKey(question){
-  return String(
-    question?.questionId ||
-    question?.id ||
-    `wheel_${CURRENT_QUESTION_INDEX}`
-  ).trim();
-}
-
-function getWheelScoreMode(question){
-  const raw = String(
-    question?.wheelScoreMode ||
-    question?.wheelScoringMethod ||
-    question?.scoringMethod ||
-    "correct_wrong"
-  ).trim().toLowerCase();
-
-  return ["manual_points","manual","points","team_points"].includes(raw)
-    ? "manual_points"
-    : "correct_wrong";
-}
-
-function initializeWheelQuestionState(question){
-  const key = getWheelQuestionKey(question);
-
-  if(WHEEL_ACTIVE_QUESTION_ID === key && WHEEL_REMAINING_INDICES.length){
-    return;
-  }
-
-  WHEEL_ACTIVE_QUESTION_ID = key;
-  WHEEL_REMAINING_INDICES = (Array.isArray(question?.answers) ? question.answers : [])
-    .map((item,index)=>String(item?.text || "").trim() ? index : -1)
-    .filter(index=>index >= 0);
-
-  WHEEL_SELECTED_INDEX = -1;
-  WHEEL_CURRENT_LOCAL_INDEX = -1;
-  WHEEL_ROTATION = 0;
-  WHEEL_POINTS_MULTIPLIER = 1;
-  WHEEL_IS_SPINNING = false;
-  WHEEL_IS_DECELERATING = false;
-}
-
-function getWheelRemainingEntries(question){
-  const answers = Array.isArray(question?.answers) ? question.answers : [];
-
-  return WHEEL_REMAINING_INDICES
-    .map(originalIndex=>({
-      originalIndex,
-      item:answers[originalIndex]
-    }))
-    .filter(entry=>entry.item && String(entry.item?.text || "").trim());
-}
-
 function getWheelItems(){
-  const question = CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX];
-  return getWheelRemainingEntries(question).map(entry=>entry.item);
+
+  const question =
+    CURRENT_ACTIVITY
+      ?.questions?.[CURRENT_QUESTION_INDEX];
+
+  return Array.isArray(question?.answers)
+    ? question.answers.filter(item=>
+        String(item?.text || "").trim()
+      )
+    : [];
 }
 
 function getWheelColors(count){
+
   const colors = [
-    "#164478","#f4b942","#17a673","#e74c3c","#7f5af0","#00a8cc",
-    "#f08a24","#34495e","#c0392b","#16a085","#8e44ad","#2980b9"
+    "#164478",
+    "#f4b942",
+    "#17a673",
+    "#e74c3c",
+    "#7f5af0",
+    "#00a8cc",
+    "#f08a24",
+    "#34495e",
+    "#c0392b",
+    "#16a085",
+    "#8e44ad",
+    "#2980b9"
   ];
 
   return Array.from(
-    {length:Math.max(1,count)},
-    (_,index)=>colors[index % colors.length]
+    {length:count},
+    (_,index)=>
+      colors[index % colors.length]
   );
 }
 
-function drawRemainingWheel(question){
-  const entries = getWheelRemainingEntries(question);
-  const disc = document.getElementById("wheelDisc");
-  const remaining = document.getElementById("wheelRemainingText");
-  const spinButton = document.getElementById("wheelSpinBtn");
 
-  if(remaining){
-    remaining.textContent = entries.length === 1
-      ? "1 question remaining — final team question"
-      : `${entries.length} wheel questions remaining`;
-  }
+function resetWheelMcqState(){
+  WHEEL_MCQ_IS_SPINNING = false;
+  WHEEL_MCQ_SELECTED_QUESTION_INDEX = -1;
+  WHEEL_MCQ_SELECTED_ANSWER_INDEX = -1;
+  WHEEL_MCQ_ROTATION = 0;
+  WHEEL_MCQ_POINTS_AWARDED = false;
+  WHEEL_MCQ_NUMBER_MAP = new Map();
 
-  if(!disc) return;
-
-  const count = Math.max(1,entries.length);
-  const colors = getWheelColors(count);
-  const step = 360 / count;
-
-  const gradient = entries.length
-    ? entries.map((_,i)=>`${colors[i]} ${i*step}deg ${(i+1)*step}deg`).join(",")
-    : "#d9e3ec 0deg 360deg";
-
-  disc.style.transition = "none";
-  disc.style.transform = "rotate(0deg)";
-  WHEEL_ROTATION = 0;
-  disc.style.background = `conic-gradient(${gradient})`;
-
-  disc.innerHTML = entries.length
-    ? `${entries.map((entry,i)=>`
-        <div class="wheel-label" style="transform:rotate(${i*step + step/2 - 90}deg) translateY(-50%)">
-          ${esc(entry.item.text)}
-        </div>
-      `).join("")}<div class="wheel-center">🎡</div>`
-    : `<div class="wheel-center">✓</div>`;
-
-  void disc.offsetWidth;
-  disc.style.transition = "transform 4.4s cubic-bezier(.12,.72,.12,1)";
-
-  if(spinButton){
-    spinButton.classList.toggle("hidden",entries.length === 0);
-    spinButton.disabled = entries.length === 0;
-    spinButton.innerHTML = entries.length === 1
-      ? '<i class="fa-solid fa-flag"></i> Show Last Question'
-      : '<i class="fa-solid fa-rotate"></i> Spin Wheel';
+  if(Array.isArray(CURRENT_ACTIVITY?.questions)){
+    CURRENT_ACTIVITY.questions.forEach((question,index)=>{
+      if(String(question?.type || "").trim().toLowerCase() === "wheelmcq"){
+        WHEEL_MCQ_NUMBER_MAP.set(getStableQuestionId(question,index), index + 1);
+      }
+    });
   }
 }
 
-function updateWheelManualTeamLabel(){
-  const team = getCurrentTeam();
-  const label = document.getElementById("wheelManualCurrentTeam");
-  if(label){
-    label.textContent = team
-      ? `🏆 Enter points earned by ${team.name}`
-      : "🏆 Enter earned points";
+function getWheelMcqQuestionNumber(question,index){
+  const id = getStableQuestionId(question,index);
+  if(!WHEEL_MCQ_NUMBER_MAP.has(id)){
+    WHEEL_MCQ_NUMBER_MAP.set(id, index + 1);
   }
+  return WHEEL_MCQ_NUMBER_MAP.get(id);
 }
 
-function renderWheelQuestion(question,answersBox){
-  clearWheelState();
-  initializeWheelQuestionState(question);
+function getRemainingWheelMcqIndexes(){
+  if(!Array.isArray(CURRENT_ACTIVITY?.questions)) return [];
+  const indexes = [];
+  for(let i=CURRENT_QUESTION_INDEX;i<CURRENT_ACTIVITY.questions.length;i++){
+    if(String(CURRENT_ACTIVITY.questions[i]?.type || "").trim().toLowerCase() === "wheelmcq"){
+      indexes.push(i);
+    }
+  }
+  return indexes;
+}
 
-  const entries = getWheelRemainingEntries(question);
-  answersBox.className = "wheel-game";
+function buildWheelMcqMedia(question){
+  const mediaType = question?.mediaType ||
+    (question?.video ? "video" : question?.audio ? "audio" : question?.image ? "image" : "none");
+  const mediaUrl = question?.mediaUrl || question?.video || question?.audio || question?.image || "";
+  if(!mediaUrl) return "";
 
-  if(!entries.length){
-    answersBox.innerHTML = `
-      <div class="feedback good">✅ All Wheel of Fortune questions are completed.</div>
-    `;
-    ANSWER_LOCKED = true;
-    showNextQuestionButton();
+  if(mediaType === "image"){
+    return `<div class="wheel-mcq-media"><img src="${esc(mediaUrl)}" alt=""></div>`;
+  }
+  if(mediaType === "audio"){
+    return `<div class="wheel-mcq-media"><audio controls src="${esc(mediaUrl)}"></audio></div>`;
+  }
+  if(mediaType === "video"){
+    const embed = toYouTubeEmbedUrl(mediaUrl);
+    if(embed){
+      return `<div class="wheel-mcq-media"><iframe class="question-youtube" src="${esc(embed)}" allowfullscreen></iframe></div>`;
+    }
+    return `<div class="wheel-mcq-media"><video controls src="${esc(mediaUrl)}"></video></div>`;
+  }
+  return "";
+}
+
+function renderWheelMcqQuestion(question,answersBox){
+  const remainingIndexes = getRemainingWheelMcqIndexes();
+  WHEEL_MCQ_SELECTED_QUESTION_INDEX = -1;
+  WHEEL_MCQ_SELECTED_ANSWER_INDEX = -1;
+  WHEEL_MCQ_POINTS_AWARDED = false;
+  WHEEL_MCQ_IS_SPINNING = false;
+  answersBox.className = "wheel-mcq-game";
+
+  if(!remainingIndexes.length){
+    answersBox.innerHTML = '<div class="feedback bad">No Wheel + Multiple Choice questions remain.</div>';
     return;
   }
 
-  const mode = getWheelScoreMode(question);
+  const colors = getWheelColors(remainingIndexes.length);
+  const step = 360 / remainingIndexes.length;
+  const gradient = remainingIndexes.map((_,i)=>
+    `${colors[i]} ${i*step}deg ${(i+1)*step}deg`
+  ).join(",");
+
+  const team = getCurrentTeam();
 
   answersBox.innerHTML = `
+    <div class="wheel-mcq-instruction">
+      Spin the wheel. Only question numbers are shown. After answering, the trainer enters the team's points manually.
+    </div>
+
+    <div class="wheel-mcq-remaining">
+      ${remainingIndexes.map(index=>`
+        <span class="wheel-mcq-number-chip">${getWheelMcqQuestionNumber(CURRENT_ACTIVITY.questions[index],index)}</span>
+      `).join("")}
+    </div>
+
     <div class="wheel-wrap">
       <div class="wheel-pointer">▼</div>
-      <div id="wheelDisc" class="wheel-disc">
+      <div id="wheelMcqDisc" class="wheel-disc" style="background:conic-gradient(${gradient})">
+        ${remainingIndexes.map((questionIndex,i)=>`
+          <div class="wheel-label" style="transform:rotate(${i*step+step/2}deg) translateY(-50%)">
+            ${getWheelMcqQuestionNumber(CURRENT_ACTIVITY.questions[questionIndex],questionIndex)}
+          </div>
+        `).join("")}
         <div class="wheel-center">🎡</div>
       </div>
     </div>
 
-    <div id="wheelRemainingText" class="wheel-remaining"></div>
-
     <div class="wheel-controls">
-      <button id="wheelSpinBtn" class="btn btn-gold" type="button" onclick="spinWheel()">
+      <button id="wheelMcqSpinBtn" class="btn btn-gold" type="button" onclick="spinWheelMcq()">
         <i class="fa-solid fa-rotate"></i> Spin Wheel
       </button>
-
-      ${mode === "correct_wrong" ? `
-        <button id="wheelCorrectBtn" class="btn wheel-correct hidden" type="button" onclick="gradeWheelAnswer(true)">
-          <i class="fa-solid fa-check"></i> Correct
-        </button>
-        <button id="wheelWrongBtn" class="btn wheel-wrong hidden" type="button" onclick="gradeWheelAnswer(false)">
-          <i class="fa-solid fa-xmark"></i> Wrong
-        </button>
-      ` : ""}
     </div>
 
-    ${mode === "manual_points" ? `
-      <div id="wheelManualScore" class="wheel-manual-score hidden">
-        <div id="wheelManualCurrentTeam" class="wheel-team-now"></div>
-        <div class="wheel-manual-score-row">
-          <div>
-            <label>Points earned for this question</label>
-            <input id="wheelManualPoints" type="number" min="0" step="1" value="1" inputmode="numeric">
-          </div>
-          <button class="btn btn-primary" type="button" onclick="saveWheelManualPoints()">
-            <i class="fa-solid fa-check"></i> Save Points & Continue
-          </button>
+    <div id="wheelMcqQuestionCard" class="wheel-mcq-question-card hidden"></div>
+
+    <div id="wheelMcqScorePanel" class="wheel-mcq-score-panel hidden">
+      <div class="wheel-mcq-points-row">
+        <div>
+          <label>Team</label>
+          <div id="wheelMcqCurrentTeam" class="wheel-mcq-current-team">${esc(team?.name || "Current Team")}</div>
         </div>
+        <div>
+          <label>Points</label>
+          <input id="wheelMcqPointsInput" type="number" min="0" step="1" value="1" inputmode="numeric">
+        </div>
+        <button id="wheelMcqAwardBtn" class="btn btn-primary" type="button" onclick="awardWheelMcqPoints()">
+          <i class="fa-solid fa-plus"></i> Add Points
+        </button>
       </div>
-    ` : ""}
-
-    <div id="wheelResult" class="wheel-result-card hidden"></div>
-
-    <div class="play-summary-info" style="margin-top:13px">
-      ${mode === "manual_points"
-        ? "After every selected wheel question, the trainer must enter the earned points. The selected question is then removed from the wheel."
-        : "After every selected wheel question, mark it Correct or Wrong. The selected question is then removed from the wheel."}
+      <div id="wheelMcqPointsSaved" class="wheel-mcq-points-saved hidden"></div>
     </div>
   `;
-
-  drawRemainingWheel(question);
-  updateWheelManualTeamLabel();
 }
 
-function spinWheel(){
-  if(
-    ANSWER_LOCKED ||
-    ACTIVITY_FINISHED ||
-    WHEEL_IS_DECELERATING ||
-    WHEEL_SELECTED_INDEX >= 0
-  ){
-    return;
-  }
+function spinWheelMcq(){
+  if(ANSWER_LOCKED || ACTIVITY_FINISHED || WHEEL_MCQ_IS_SPINNING) return;
 
-  const question = CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX];
-  initializeWheelQuestionState(question);
-  const entries = getWheelRemainingEntries(question);
+  const remainingIndexes = getRemainingWheelMcqIndexes();
+  if(!remainingIndexes.length) return;
 
-  if(!entries.length) return;
-
-  const button = document.getElementById("wheelSpinBtn");
-  const disc = document.getElementById("wheelDisc");
-  const result = document.getElementById("wheelResult");
-  const answersBox = document.getElementById("studentAnswers");
-
+  const button = document.getElementById("wheelMcqSpinBtn");
+  const disc = document.getElementById("wheelMcqDisc");
   if(!button || !disc) return;
 
-  if(!WHEEL_TIMER_STARTED){
-    WHEEL_TIMER_STARTED = true;
-    startActivityTimer();
-  }
-
-  WHEEL_IS_SPINNING = true;
-  WHEEL_IS_DECELERATING = true;
+  WHEEL_MCQ_IS_SPINNING = true;
   button.disabled = true;
   button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Spinning...';
 
-  document.getElementById("wheelCorrectBtn")?.classList.add("hidden");
-  document.getElementById("wheelWrongBtn")?.classList.add("hidden");
-  document.getElementById("wheelManualScore")?.classList.add("hidden");
-  result?.classList.add("hidden");
-  answersBox?.classList.remove("wheel-question-view");
+  const selectedSlot = Math.floor(Math.random() * remainingIndexes.length);
+  const selectedIndex = remainingIndexes[selectedSlot];
+  const step = 360 / remainingIndexes.length;
+  const centerAngle = selectedSlot * step + step / 2;
 
-  const localIndex = entries.length === 1
-    ? 0
-    : Math.floor(Math.random() * entries.length);
-
-  WHEEL_CURRENT_LOCAL_INDEX = localIndex;
-  WHEEL_SELECTED_INDEX = entries[localIndex].originalIndex;
-
-  const step = 360 / entries.length;
-  const centerAngle = localIndex * step + step / 2;
-  const extraTurns = 4 + Math.floor(Math.random()*2);
-  WHEEL_ROTATION += extraTurns * 360 + (360 - centerAngle);
-
-  disc.style.transform = `rotate(${WHEEL_ROTATION}deg)`;
+  WHEEL_MCQ_ROTATION += 1440 + (360 - centerAngle);
+  disc.style.transform = `rotate(${WHEEL_MCQ_ROTATION}deg)`;
   playWheelSpinSound();
 
-  WHEEL_STOP_TIMEOUT = setTimeout(()=>{
-    WHEEL_STOP_TIMEOUT = null;
-    WHEEL_IS_SPINNING = false;
-    WHEEL_IS_DECELERATING = false;
+  setTimeout(()=>{
+    WHEEL_MCQ_IS_SPINNING = false;
 
-    const selected = question?.answers?.[WHEEL_SELECTED_INDEX];
-    if(!selected) return;
+    moveSelectedQuestionToCurrent(selectedIndex);
+    const selectedQuestion = CURRENT_ACTIVITY.questions[CURRENT_QUESTION_INDEX];
+    const number = getWheelMcqQuestionNumber(selectedQuestion,CURRENT_QUESTION_INDEX);
+    WHEEL_MCQ_SELECTED_QUESTION_INDEX = CURRENT_QUESTION_INDEX;
 
-    const doublePoints = clean(selected?.text || "").includes("double points");
-    WHEEL_POINTS_MULTIPLIER = doublePoints ? 2 : 1;
+    const card = document.getElementById("wheelMcqQuestionCard");
+    card.innerHTML = `
+      <div class="wheel-mcq-question-number">Question ${number}</div>
+      <div class="wheel-mcq-question-text">${esc(selectedQuestion.text || selectedQuestion.question || "")}</div>
+      ${buildWheelMcqMedia(selectedQuestion)}
+      <div class="wheel-mcq-options">
+        ${(selectedQuestion.answers || []).map((answer,index)=>`
+          <button class="wheel-mcq-option" type="button" onclick="chooseWheelMcqAnswer(${index},this)" data-answer-text="${esc(answer.text || "")}">
+            ${getItemImage(answer) ? `<img src="${esc(getItemImage(answer))}" alt="">` : ""}
+            ${answer.text ? `<div>${esc(answer.text)}</div>` : ""}
+          </button>
+        `).join("")}
+      </div>
+    `;
+    card.classList.remove("hidden");
 
-    if(result){
-      result.innerHTML = `
-        <div class="wheel-result-category">
-          ${doublePoints ? "✨" : "🎯"} ${esc(selected?.text || "Selected Challenge")}
-          ${doublePoints && getWheelScoreMode(question) === "correct_wrong" ? " — 2 Points" : ""}
-        </div>
-        <div class="wheel-result-question">
-          ${esc(selected?.right || selected?.challenge || selected?.question || "Complete the selected challenge.")}
-        </div>
-        ${selected?.image ? `<img src="${esc(selected.image)}" alt="Wheel challenge">` : ""}
-      `;
-      result.classList.remove("hidden");
-    }
-
-    answersBox?.classList.add("wheel-question-view");
-
-    if(getWheelScoreMode(question) === "manual_points"){
-      updateWheelManualTeamLabel();
-      const manualBox = document.getElementById("wheelManualScore");
-      const pointsInput = document.getElementById("wheelManualPoints");
-      manualBox?.classList.remove("hidden");
-      if(pointsInput){
-        pointsInput.value = "1";
-        setTimeout(()=>pointsInput.focus(),80);
-      }
-    }else{
-      document.getElementById("wheelCorrectBtn")?.classList.remove("hidden");
-      document.getElementById("wheelWrongBtn")?.classList.remove("hidden");
-    }
-
+    document.getElementById("gameQuestion").textContent = `🎯 Question ${number}`;
     button.classList.add("hidden");
-    playWheelStopSound();
-    result?.scrollIntoView({behavior:"smooth",block:"center"});
   },4400);
 }
 
-function recordWheelSectionResult({isCorrect=false,points=0}={}){
-  const question = CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX];
-  const selected = question?.answers?.[WHEEL_SELECTED_INDEX];
-  const team = getCurrentTeam();
-  if(!question || !selected || !team) return;
-
-  LAST_ANSWERED_TEAM_ID = team.id || "";
-
-  team.answered = Number(team.answered || 0) + 1;
-  team.points = Number(team.points || 0) + Math.max(0,Number(points || 0));
-
-  if(isCorrect){
-    team.correct = Number(team.correct || 0) + 1;
-    moveCurrentTeamInRace(Math.max(1,Number(points || 1)));
-  }
-
-  const actor = getActorData();
-  const baseId = getStableQuestionId(question,CURRENT_QUESTION_INDEX);
-  const sectionId = `${baseId}__wheel_${WHEEL_SELECTED_INDEX}`;
-
-  ACTIVITY_ANSWER_LOG.push({
-    questionId:sectionId,
-    parentQuestionId:baseId,
-    questionNumber:CURRENT_QUESTION_INDEX + 1,
-    wheelSectionIndex:WHEEL_SELECTED_INDEX,
-    type:"wheel",
-    question:String(selected?.right || selected?.question || question?.text || "Wheel of Fortune").trim(),
-    questionText:String(selected?.right || selected?.question || question?.text || "Wheel of Fortune").trim(),
-    wheelCategory:String(selected?.text || "").trim(),
-    participantAnswer:getWheelScoreMode(question) === "manual_points"
-      ? `${Number(points || 0)} points awarded`
-      : (isCorrect ? "Marked Correct" : "Marked Wrong"),
-    studentAnswer:getWheelScoreMode(question) === "manual_points"
-      ? `${Number(points || 0)} points awarded`
-      : (isCorrect ? "Marked Correct" : "Marked Wrong"),
-    correctAnswer:"Trainer evaluation",
-    expectedAnswer:"Trainer evaluation",
-    correct:Boolean(isCorrect),
-    isCorrect:Boolean(isCorrect),
-    awardedPoints:Math.max(0,Number(points || 0)),
-    teamId:team.id || "",
-    teamName:team.name || "",
-    solvedByName:String(actor?.name || actor?.username || "Trainer").trim(),
-    solvedByRole:String(actor?.role || "trainer").trim()
-  });
-
-  renderLiveTeamBoard();
-}
-
-function finishCurrentWheelSection({isCorrect=false,points=0,message=""}={}){
-  const question = CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX];
-  const selectedIndex = WHEEL_SELECTED_INDEX;
-
-  if(selectedIndex < 0) return;
-
-  recordWheelSectionResult({isCorrect,points});
-
-  WHEEL_REMAINING_INDICES = WHEEL_REMAINING_INDICES.filter(
-    index=>index !== selectedIndex
-  );
-
-  WHEEL_SELECTED_INDEX = -1;
-  WHEEL_CURRENT_LOCAL_INDEX = -1;
-  WHEEL_POINTS_MULTIPLIER = 1;
-
-  const feedback = document.getElementById("feedback");
-  if(feedback){
-    feedback.textContent = message;
-    feedback.className = `feedback ${isCorrect || points > 0 ? "good" : "bad"}`;
-  }
-
-  document.getElementById("wheelCorrectBtn")?.classList.add("hidden");
-  document.getElementById("wheelWrongBtn")?.classList.add("hidden");
-  document.getElementById("wheelManualScore")?.classList.add("hidden");
-  document.getElementById("wheelResult")?.classList.add("hidden");
-
-  const hasMoreWheelQuestions = WHEEL_REMAINING_INDICES.length > 0;
-
-  if(hasMoreWheelQuestions){
-    /* IMPORTANT: stay in the SAME Wheel question. Do not show Next Question. */
-    advanceTeamTurn();
-    renderCurrentTeam();
-    renderLiveTeamBoard();
-
-    ANSWER_LOCKED = false;
-    drawRemainingWheel(question);
-    updateWheelManualTeamLabel();
-
-    const spinButton = document.getElementById("wheelSpinBtn");
-    spinButton?.classList.remove("hidden");
-
-    if(feedback){
-      feedback.textContent += ` • ${WHEEL_REMAINING_INDICES.length} remaining.`;
-    }
-
-    return;
-  }
-
-  /* Only after the LAST wheel section is graded do we allow the next activity question. */
-  ANSWER_LOCKED = true;
-  stopActivityTimer();
-
-  if(feedback){
-    feedback.textContent = getWheelScoreMode(question) === "manual_points"
-      ? "🏁 All Wheel of Fortune questions are complete. Continue to the next activity question."
-      : "🏁 All Wheel of Fortune questions are complete. Continue to the next activity question.";
-    feedback.className = "feedback good";
-  }
-
-  showNextQuestionButton();
-}
-
-function gradeWheelAnswer(isCorrect){
+function chooseWheelMcqAnswer(answerIndex,clickedButton){
   if(
     ANSWER_LOCKED ||
     ACTIVITY_FINISHED ||
-    WHEEL_IS_SPINNING ||
-    WHEEL_IS_DECELERATING ||
-    WHEEL_SELECTED_INDEX < 0
-  ){
-    return;
-  }
+    WHEEL_MCQ_IS_SPINNING ||
+    WHEEL_MCQ_SELECTED_QUESTION_INDEX < 0
+  ) return;
 
-  const awarded = isCorrect ? WHEEL_POINTS_MULTIPLIER : 0;
+  const question = CURRENT_ACTIVITY.questions[CURRENT_QUESTION_INDEX];
+  const answers = Array.isArray(question?.answers) ? question.answers : [];
+  const selected = answers[answerIndex];
+  if(!selected) return;
+
+  ANSWER_LOCKED = true;
+  WHEEL_MCQ_SELECTED_ANSWER_INDEX = answerIndex;
+
+  const buttons = [...document.querySelectorAll(".wheel-mcq-option")];
+  buttons.forEach((button,index)=>{
+    button.disabled = true;
+    if(answers[index]?.correct === true){
+      button.classList.add("correct");
+    }
+  });
+
+  const isCorrect = selected.correct === true;
+  const feedback = document.getElementById("feedback");
+  feedback.className = "feedback";
 
   if(isCorrect){
-    CURRENT_SCORE += awarded;
+    CURRENT_SCORE++;
+    clickedButton.classList.add("correct");
+    feedback.textContent = "🎉 Correct Answer! Enter the team's points.";
+    feedback.classList.add("good");
     launchSmallConfetti();
     playCorrectSound();
   }else{
+    clickedButton.classList.add("wrong");
+    feedback.textContent = "❌ Incorrect Answer — Enter the team's points.";
+    feedback.classList.add("bad");
     playWrongSound();
   }
 
-  const scorePill = document.getElementById("scorePill");
-  if(scorePill){
-    scorePill.textContent = `⭐ ${CURRENT_SCORE}`;
-  }
+  recordCurrentTeamAnswer(isCorrect);
+  document.getElementById("scorePill").textContent = `⭐ ${CURRENT_SCORE}`;
 
-  finishCurrentWheelSection({
-    isCorrect:Boolean(isCorrect),
-    points:awarded,
-    message:isCorrect
-      ? (awarded === 2
-          ? "🎉 Correct! 2 points awarded. Spin for the next team."
-          : "🎉 Correct! 1 point awarded. Spin for the next team.")
-      : "❌ Marked wrong. 0 points awarded. Spin for the next team."
-  });
+  const scorePanel = document.getElementById("wheelMcqScorePanel");
+  if(scorePanel) scorePanel.classList.remove("hidden");
 }
 
-function saveWheelManualPoints(){
+function awardWheelMcqPoints(){
+  if(
+    ACTIVITY_FINISHED ||
+    WHEEL_MCQ_SELECTED_ANSWER_INDEX < 0 ||
+    WHEEL_MCQ_POINTS_AWARDED
+  ) return;
+
+  const team = getCurrentTeam();
+  if(!team) return;
+
+  const input = document.getElementById("wheelMcqPointsInput");
+  const points = Math.max(0, Number(input?.value || 0));
+  if(!Number.isFinite(points)){
+    alert("Enter a valid number of points.");
+    return;
+  }
+
+  team.points = Number(team.points || 0) + points;
+  WHEEL_MCQ_POINTS_AWARDED = true;
+
+  const button = document.getElementById("wheelMcqAwardBtn");
+  if(button){
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-check"></i> Points Added';
+  }
+  if(input) input.disabled = true;
+
+  const saved = document.getElementById("wheelMcqPointsSaved");
+  if(saved){
+    saved.textContent = `✅ ${team.name}: +${points} points — Total ${Number(team.points || 0)} points`;
+    saved.classList.remove("hidden");
+  }
+
+  renderLiveTeamBoard();
+  showNextQuestionButton();
+}
+
+function renderWheelQuestion(
+  question,
+  answersBox
+){
+
+  clearWheelState();
+
+  const items =
+    Array.isArray(question.answers)
+      ? question.answers.filter(item=>
+          String(item?.text || "").trim()
+        )
+      : [];
+
+  answersBox.className =
+    "wheel-game";
+
+  WHEEL_SELECTED_INDEX = -1;
+  WHEEL_IS_SPINNING = false;
+  WHEEL_POINTS_MULTIPLIER = 1;
+
+  if(items.length < 2){
+
+    answersBox.innerHTML = `
+      <div class="feedback bad">
+        This wheel requires at least two sections.
+      </div>
+    `;
+
+    return;
+  }
+
+  const colors =
+    getWheelColors(items.length);
+
+  const step =
+    360 / items.length;
+
+  const gradient =
+    items.map(
+      (_,index)=>
+        `${colors[index]} ${index * step}deg ${(index + 1) * step}deg`
+    ).join(",");
+
+  answersBox.innerHTML = `
+    <div class="wheel-wrap">
+
+      <div class="wheel-pointer">
+        ▼
+      </div>
+
+      <div
+        id="wheelDisc"
+        class="wheel-disc"
+        style="background:conic-gradient(${gradient})">
+
+        ${
+          items.map((item,index)=>`
+            <div
+              class="wheel-label"
+              style="
+              transform:
+  rotate(${index * step + step / 2 - 90}deg)
+  translateY(-50%);
+              ">
+              ${esc(item.text)}
+            </div>
+          `).join("")
+        }
+
+        <div class="wheel-center">
+          🎡
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="wheel-controls">
+
+      <button
+        id="wheelSpinBtn"
+        class="btn btn-gold"
+        type="button"
+        onclick="spinWheel()">
+
+        <i class="fa-solid fa-rotate"></i>
+        Spin Wheel
+
+      </button>
+
+      <button
+        id="wheelCorrectBtn"
+        class="btn wheel-correct hidden"
+        type="button"
+        onclick="gradeWheelAnswer(true)">
+
+        <i class="fa-solid fa-check"></i>
+        Correct
+
+      </button>
+
+      <button
+        id="wheelWrongBtn"
+        class="btn wheel-wrong hidden"
+        type="button"
+        onclick="gradeWheelAnswer(false)">
+
+        <i class="fa-solid fa-xmark"></i>
+        Wrong
+
+      </button>
+
+    </div>
+
+    <div
+      id="wheelResult"
+      class="wheel-result-card hidden">
+    </div>
+
+    <div
+      class="play-summary-info"
+      style="margin-top:13px">
+
+      Spin the wheel, let the student complete the selected challenge,
+      then choose Correct or Wrong.
+
+    </div>
+  `;
+}
+
+function spinWheel(){
+
+  if(ANSWER_LOCKED || ACTIVITY_FINISHED || WHEEL_IS_DECELERATING){
+    return;
+  }
+
+  const items = getWheelItems();
+  if(items.length < 2){
+    alert("This wheel requires at least two sections.");
+    return;
+  }
+
+  const button = document.getElementById("wheelSpinBtn");
+  const disc = document.getElementById("wheelDisc");
+  const correctButton = document.getElementById("wheelCorrectBtn");
+  const wrongButton = document.getElementById("wheelWrongBtn");
+  const result = document.getElementById("wheelResult");
+  const answersBox = document.getElementById("studentAnswers");
+  if(!button || !disc) return;
+
+  if(!WHEEL_IS_SPINNING){
+    if(!WHEEL_TIMER_STARTED){ WHEEL_TIMER_STARTED=true; startActivityTimer(); }
+    WHEEL_IS_SPINNING=true;
+    WHEEL_LAST_FRAME_TIME=0;
+    correctButton?.classList.add("hidden");
+    wrongButton?.classList.add("hidden");
+    result?.classList.add("hidden");
+    answersBox?.classList.remove("wheel-question-view");
+    button.innerHTML='<i class="fa-solid fa-stop"></i> Stop Wheel';
+    disc.style.transition="none";
+    playWheelSpinSound();
+
+    function rotateContinuously(timestamp){
+      if(!WHEEL_IS_SPINNING || WHEEL_IS_DECELERATING) return;
+      if(!WHEEL_LAST_FRAME_TIME) WHEEL_LAST_FRAME_TIME=timestamp;
+      const elapsed=Math.min(40,timestamp-WHEEL_LAST_FRAME_TIME);
+      WHEEL_LAST_FRAME_TIME=timestamp;
+      WHEEL_ROTATION+=(WHEEL_SPEED_DEG_PER_SECOND*elapsed)/1000;
+      disc.style.transform=`rotate(${WHEEL_ROTATION}deg)`;
+      WHEEL_ANIMATION_FRAME=requestAnimationFrame(rotateContinuously);
+    }
+    WHEEL_ANIMATION_FRAME=requestAnimationFrame(rotateContinuously);
+    return;
+  }
+
+  /* الضغط الثاني يبدأ تباطؤًا واقعيًا، ولا يظهر السؤال إلا بعد توقف العجلة تمامًا. */
+  WHEEL_IS_SPINNING=false;
+  WHEEL_IS_DECELERATING=true;
+  if(WHEEL_ANIMATION_FRAME) cancelAnimationFrame(WHEEL_ANIMATION_FRAME);
+  WHEEL_ANIMATION_FRAME=null;
+  button.disabled=true;
+  button.innerHTML='<i class="fa-solid fa-hourglass-half"></i> Slowing Down...';
+
+  const startRotation=WHEEL_ROTATION;
+  const extraTurns=3+Math.random()*2;
+  const extraDegrees=extraTurns*360+Math.random()*360;
+  const finalRotation=startRotation+extraDegrees;
+  const duration=3200+Math.random()*900;
+  const startTime=performance.now();
+
+  function easeOutQuint(t){ return 1-Math.pow(1-t,5); }
+  function decelerate(now){
+    const progress=Math.min(1,(now-startTime)/duration);
+    WHEEL_ROTATION=startRotation+(finalRotation-startRotation)*easeOutQuint(progress);
+    disc.style.transform=`rotate(${WHEEL_ROTATION}deg)`;
+    if(progress<1){ WHEEL_ANIMATION_FRAME=requestAnimationFrame(decelerate); return; }
+
+    WHEEL_ANIMATION_FRAME=null;
+    WHEEL_IS_DECELERATING=false;
+    const step=360/items.length;
+    const normalized=((WHEEL_ROTATION%360)+360)%360;
+    const pointerAngle=(360-normalized)%360;
+    WHEEL_SELECTED_INDEX=Math.floor(pointerAngle/step)%items.length;
+    const selected=items[WHEEL_SELECTED_INDEX];
+    const doublePoints=clean(selected?.text||"").includes("double points");
+    WHEEL_POINTS_MULTIPLIER=doublePoints?2:1;
+    playWheelStopSound();
+
+    if(result){
+      result.innerHTML=`<div class="wheel-result-category">${doublePoints?"✨":"🎯"} ${esc(selected?.text||"Selected Challenge")} ${doublePoints?" — 2 Points":""}</div><div class="wheel-result-question">${esc(selected?.right||selected?.challenge||selected?.question||"Complete the selected challenge.")}</div>${selected?.image?`<img src="${esc(selected.image)}" alt="Wheel challenge">`:""}`;
+      result.classList.remove("hidden");
+    }
+    answersBox?.classList.add("wheel-question-view");
+    correctButton?.classList.remove("hidden");
+    wrongButton?.classList.remove("hidden");
+    button.classList.add("hidden");
+    result?.scrollIntoView({behavior:"smooth",block:"center"});
+  }
+  WHEEL_ANIMATION_FRAME=requestAnimationFrame(decelerate);
+}
+
+function gradeWheelAnswer(isCorrect){
+
   if(
     ANSWER_LOCKED ||
     ACTIVITY_FINISHED ||
     WHEEL_IS_SPINNING ||
-    WHEEL_IS_DECELERATING ||
     WHEEL_SELECTED_INDEX < 0
   ){
     return;
   }
 
-  const input = document.getElementById("wheelManualPoints");
-  const points = Number(input?.value);
-  const team = getCurrentTeam();
+  ANSWER_LOCKED = true;
 
-  if(!Number.isFinite(points) || points < 0){
-    alert("Enter a valid points value (0 or more).");
-    input?.focus();
-    return;
-  }
+  const feedback =
+    document.getElementById(
+      "feedback"
+    );
 
-  CURRENT_SCORE += points;
+  feedback.className =
+    "feedback";
 
-  const scorePill = document.getElementById("scorePill");
-  if(scorePill){
-    scorePill.textContent = `⭐ ${CURRENT_SCORE}`;
-  }
+  if(isCorrect){
 
-  if(points > 0){
+    CURRENT_SCORE +=
+      WHEEL_POINTS_MULTIPLIER;
+
+    feedback.textContent =
+      WHEEL_POINTS_MULTIPLIER === 2
+        ? "🎉 Correct! Double points awarded."
+        : "🎉 Correct wheel challenge!";
+
+    feedback.classList.add(
+      "good"
+    );
+
+    launchSmallConfetti();
     playCorrectSound();
+
+  }else{
+
+    feedback.textContent =
+      "❌ The wheel challenge was marked incorrect.";
+
+    feedback.classList.add(
+      "bad"
+    );
+
+    playWrongSound();
+
   }
 
-  finishCurrentWheelSection({
-    isCorrect:points > 0,
-    points,
-    message:`✅ ${team?.name || "Team"}: ${points} point${points === 1 ? "" : "s"} saved. Spin for the next team.`
+  recordCurrentTeamAnswer(
+    Boolean(isCorrect),
+    isCorrect
+      ? WHEEL_POINTS_MULTIPLIER
+      : 1
+  );
+
+  WHEEL_POINTS_MULTIPLIER = 1;
+
+  [
+    "wheelSpinBtn",
+    "wheelCorrectBtn",
+    "wheelWrongBtn"
+  ].forEach(id=>{
+
+    const button =
+      document.getElementById(id);
+
+    if(button){
+      button.disabled = true;
+    }
+
   });
+
+  document
+    .getElementById("scorePill")
+    .textContent =
+      `⭐ ${CURRENT_SCORE}`;
+
+  stopActivityTimer();
+
+  showNextQuestionButton();
 }
 
 function playWheelSpinSound(){
@@ -10405,7 +10629,7 @@ function showNextQuestionButton(){
 
 
 /* =====================================
-   CONTINUE BALLOON / MYSTERY GROUP
+   CONTINUE BALLOON / MYSTERY / WHEEL-MCQ GROUP
    BEFORE MOVING TO ANOTHER MIXED TYPE
 ===================================== */
 
@@ -10432,7 +10656,8 @@ function moveNextGroupedQuestionToCurrent(
 
   if(
     normalizedType !== "balloon" &&
-    normalizedType !== "mystery"
+    normalizedType !== "mystery" &&
+    normalizedType !== "wheelmcq"
   ){
     return false;
   }
@@ -10511,13 +10736,6 @@ function nextQuestionManually(){
     )
     .trim()
     .toLowerCase();
-
-  if(answeredType === "wheel"){
-    WHEEL_ACTIVE_QUESTION_ID = "";
-    WHEEL_REMAINING_INDICES = [];
-    WHEEL_SELECTED_INDEX = -1;
-    WHEEL_CURRENT_LOCAL_INDEX = -1;
-  }
 
   /*
     Every completed question passes the turn to the next active
@@ -10654,6 +10872,12 @@ async function finishActivity(
   const bombWinner =
     getBombWinner();
 
+  const hasWheelMcq =
+    Array.isArray(CURRENT_ACTIVITY?.questions) &&
+    CURRENT_ACTIVITY.questions.some(
+      question=>String(question?.type || "").trim().toLowerCase() === "wheelmcq"
+    );
+
   const teamResult =
     renderTeamResults();
 
@@ -10721,18 +10945,23 @@ async function finishActivity(
         : "Winner";
 
     message =
-      RACE_MODE_ACTIVE
+      hasWheelMcq
         ? (
-            `🏁 Race ${winnerLabel}: ${winnerNames} — ` +
-            `${Number(
-              winningTeam.racePosition ||
-              0
-            )}/${RACE_TOTAL_STEPS} steps`
+            `${winningTeams.length > 1 ? "🤝" : "🏆"} ${winnerLabel}: ${winnerNames} — ` +
+            `${Number(winningTeam.points || 0)} points`
           )
-        : (
-            `🏆 ${winnerLabel}: ${winnerNames} — ` +
-            `${winningTeam.correct} correct answers`
-          );
+        : RACE_MODE_ACTIVE
+          ? (
+              `🏁 Race ${winnerLabel}: ${winnerNames} — ` +
+              `${Number(
+                winningTeam.racePosition ||
+                0
+              )}/${RACE_TOTAL_STEPS} steps`
+            )
+          : (
+              `🏆 ${winnerLabel}: ${winnerNames} — ` +
+              `${winningTeam.correct} correct answers`
+            );
 
   }
 
@@ -10896,6 +11125,7 @@ async function finishActivity(
             correct:team.correct,
             answered:team.answered,
             assigned:team.assigned,
+            points:Number(team.points || 0),
             accuracy:team.accuracy
           })
         ),
@@ -10924,6 +11154,11 @@ async function finishActivity(
         winningTeamCorrect:
           Number(
             winningTeam?.correct || 0
+          ),
+
+        winningTeamPoints:
+          Number(
+            winningTeam?.points || 0
           ),
 
         winningTeamAccuracy:
@@ -10998,6 +11233,7 @@ async function finishActivity(
             correct:team.correct,
             answered:team.answered,
             assigned:team.assigned,
+            points:Number(team.points || 0),
             accuracy:team.accuracy
           })
         ),
