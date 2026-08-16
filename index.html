@@ -4360,15 +4360,134 @@ async function loadOpenCourses(){
     });
 }
 
+
+/* =====================================
+   COMPATIBILITY WITH UPDATED ADMIN IMPORT
+   Keeps imported/appended questions in their saved order
+   and supports the current question field names.
+===================================== */
+function normalizeImportedPracticeQuestion(question){
+  const source =
+    question && typeof question === "object"
+      ? question
+      : {};
+
+  const normalizedAnswers =
+    Array.isArray(source.answers)
+      ? source.answers.map(answer=>({
+          ...answer,
+          text:
+            String(
+              answer?.text ??
+              answer?.answer ??
+              ""
+            ),
+          right:
+            String(
+              answer?.right ??
+              answer?.match ??
+              ""
+            ),
+          image:
+            String(
+              answer?.image ??
+              answer?.imageUrl ??
+              ""
+            ),
+          correct:
+            answer?.correct === true ||
+            answer?.isCorrect === true
+        }))
+      : [];
+
+  const mediaType =
+    source.mediaType ||
+    (
+      source.video
+        ? "video"
+        : source.audio
+          ? "audio"
+          : source.image
+            ? "image"
+            : "none"
+    );
+
+  const mediaUrl =
+    String(
+      source.mediaUrl ||
+      source.video ||
+      source.audio ||
+      source.image ||
+      ""
+    ).trim();
+
+  return {
+    ...source,
+    type:
+      String(
+        source.type ||
+        "mcq"
+      ).trim().toLowerCase(),
+    text:
+      String(
+        source.text ??
+        source.question ??
+        source.q ??
+        ""
+      ),
+    wheelAnswerMode:
+      String(
+        source.wheelAnswerMode ||
+        source.answerMode ||
+        "multiplechoice"
+      ).trim().toLowerCase(),
+    mediaType,
+    mediaUrl,
+    image:
+      mediaType === "image"
+        ? mediaUrl
+        : String(source.image || ""),
+    video:
+      mediaType === "video"
+        ? mediaUrl
+        : String(source.video || ""),
+    audio:
+      mediaType === "audio"
+        ? mediaUrl
+        : String(source.audio || ""),
+    answers:
+      normalizedAnswers
+  };
+}
+
+function normalizeUpdatedActivityForPractice(activity){
+  const source =
+    activity && typeof activity === "object"
+      ? activity
+      : {};
+
+  return {
+    ...source,
+    questions:
+      Array.isArray(source.questions)
+        ? source.questions.map(
+            normalizeImportedPracticeQuestion
+          )
+        : []
+  };
+}
+
 async function loadActivitiesData(){
   const snap = await db
     .collection(ACTIVITIES_COLLECTION)
     .get();
 
-  ACTIVITIES_CACHE = snap.docs.map(doc=>({
-    id:doc.id,
-    ...doc.data()
-  }));
+  ACTIVITIES_CACHE = snap.docs.map(doc=>
+    normalizeUpdatedActivityForPractice({
+      id:doc.id,
+      ...doc.data()
+    })
+  );
 }
 
 function findCourseForActivity(activity){
