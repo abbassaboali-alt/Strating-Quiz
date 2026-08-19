@@ -5874,20 +5874,119 @@ function renderTeamResults(){
     ranked
   };
 }
+
+/* =========================================================
+   QUESTION ORDER COMPATIBILITY
+   ---------------------------------------------------------
+   The admin/editor saves questions in their visual DOM order.
+   During play, some game types (Wheel + MCQ, Balloon, Mystery)
+   temporarily move questions inside CURRENT_ACTIVITY.questions.
+   We therefore always create a fresh play copy so those runtime
+   moves never change ACTIVITIES_CACHE or the saved order.
+========================================================= */
+
+console.info("Prudle question-order compatibility: enabled");
+
+function cloneActivityForPlay(activity){
+
+  if(!activity){
+    return null;
+  }
+
+  let cloned = null;
+
+  try{
+    if(typeof structuredClone === "function"){
+      cloned = structuredClone(activity);
+    }
+  }catch(error){
+    cloned = null;
+  }
+
+  if(!cloned){
+    try{
+      cloned = JSON.parse(
+        JSON.stringify(activity)
+      );
+    }catch(error){
+      cloned = {
+        ...activity,
+        questions:Array.isArray(activity.questions)
+          ? activity.questions.map(question=>({
+              ...question,
+              answers:Array.isArray(question?.answers)
+                ? question.answers.map(answer=>({...answer}))
+                : []
+            }))
+          : []
+      };
+    }
+  }
+
+  if(!Array.isArray(cloned.questions)){
+    cloned.questions = [];
+  }
+
+  /*
+    Preserve the exact saved order from Firestore / admin editor.
+    Remove only temporary runtime fields from previous play sessions.
+  */
+  cloned.questions = cloned.questions.map((question,index)=>{
+
+    const q = {
+      ...(question || {})
+    };
+
+    delete q._groupChoiceSlot;
+    delete q._groupChoiceCompleted;
+    delete q._runtimeSelected;
+    delete q._runtimeIndex;
+
+    /*
+      Keep a stable visual number for wheels / grouped questions.
+      This does not change the actual array order.
+    */
+    q._savedQuestionNumber = index + 1;
+
+    if(Array.isArray(q.answers)){
+      q.answers = q.answers.map(answer=>({
+        ...(answer || {})
+      }));
+    }else{
+      q.answers = [];
+    }
+
+    return q;
+  });
+
+  return cloned;
+}
+
+
 function startActivity(activityId,courseId){
   stopActivityTimer();
 
-  CURRENT_ACTIVITY =
+  /*
+    Always start from a fresh copy of the activity.
+    This guarantees that the order saved by the admin/editor
+    is the order shown at the beginning of every new attempt.
+  */
+  const SOURCE_ACTIVITY =
     ACTIVITIES_CACHE.find(
       item=>item.id === activityId
     ) || null;
+
+  CURRENT_ACTIVITY =
+    cloneActivityForPlay(
+      SOURCE_ACTIVITY
+    );
 
   CURRENT_COURSE =
     OPEN_COURSES_CACHE.find(
       item=>item.id === courseId
     ) ||
     getSelectedTargetCourse(
-      CURRENT_ACTIVITY
+      SOURCE_ACTIVITY || CURRENT_ACTIVITY
     ) ||
     null;
 
@@ -8326,11 +8425,29 @@ function resetWheelMcqState(){
 }
 
 function getWheelMcqQuestionNumber(question,index){
-  const id = getStableQuestionId(question,index);
-  if(!WHEEL_MCQ_NUMBER_MAP.has(id)){
-    WHEEL_MCQ_NUMBER_MAP.set(id, index + 1);
+
+  const savedNumber =
+    Number(
+      question?._savedQuestionNumber ||
+      0
+    );
+
+  if(savedNumber > 0){
+    return savedNumber;
   }
-  return WHEEL_MCQ_NUMBER_MAP.get(id);
+
+  const stableId =
+    getStableQuestionId(
+      question,
+      index
+    );
+
+  return (
+    WHEEL_MCQ_NUMBER_MAP.get(
+      stableId
+    ) ||
+    Number(index || 0) + 1
+  );
 }
 
 function getRemainingWheelMcqIndexes(){
