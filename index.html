@@ -2916,7 +2916,7 @@ button{font-family:inherit;cursor:pointer}
       <div id="trainerCourseBox" class="actor-course hidden">
         <label>
           <i class="fa-solid fa-book-open"></i>
-          Select the trainer course that will use this activity
+          Select the Course First — Required
         </label>
 
         <select id="trainerTargetCourse" onchange="loadStudentActivities()">
@@ -4079,8 +4079,12 @@ function setupActorPanel(){
       courses.some(course=>course.id === previous)
     ){
       select.value = previous;
-    }else if(courses.length === 1){
-      select.value = courses[0].id;
+    }else{
+      /*
+        اختيار الدورة إجباري:
+        لا نختار الدورة تلقائياً حتى لو كان لدى المدرب دورة واحدة فقط.
+      */
+      select.value = "";
     }
 
     return;
@@ -4808,6 +4812,94 @@ async function loadStudentActivities(){
     }
 
     setupActorPanel();
+
+    /*
+      =========================================================
+      اختيار الدورة إجباري للمدرب والإدمن
+      لا يتم عرض أو فتح أي نشاط قبل اختيار دورة.
+      =========================================================
+    */
+    const role =
+      getLoginRole();
+
+    if(
+      role === "trainer" ||
+      role === "admin"
+    ){
+
+      const selectedCourseId =
+        document
+          .getElementById(
+            "trainerTargetCourse"
+          )
+          ?.value
+          ?.trim() || "";
+
+      if(!selectedCourseId){
+
+        box.className = "empty";
+
+        box.innerHTML = `
+          <div style="
+            max-width:620px;
+            margin:0 auto;
+            padding:28px 20px;
+            border:2px dashed #b9d0e4;
+            border-radius:20px;
+            background:#f8fbfd;
+            color:#164478;
+            text-align:center;
+          ">
+            <div style="
+              font-size:42px;
+              margin-bottom:10px;
+            ">
+              📚
+            </div>
+
+            <div style="
+              font-size:20px;
+              font-weight:900;
+              margin-bottom:7px;
+            ">
+              Select a Course First
+            </div>
+
+            <div style="
+              color:#6b7b8d;
+              font-size:14px;
+              font-weight:700;
+              line-height:1.7;
+            ">
+              You must select the course before activities can be displayed.
+            </div>
+          </div>
+        `;
+
+        const countBox =
+          document.getElementById(
+            "activityFilterCount"
+          );
+
+        if(countBox){
+          countBox.textContent =
+            "Select a course to view activities.";
+        }
+
+        const noResults =
+          document.getElementById(
+            "activitySearchNoResults"
+          );
+
+        if(noResults){
+          noResults.classList.add(
+            "hidden"
+          );
+        }
+
+        return;
+      }
+    }
 
     const available = ACTIVITIES_CACHE
       .filter(activity=>{
@@ -5964,6 +6056,30 @@ function cloneActivityForPlay(activity){
 
 
 function startActivity(activityId,courseId){
+  /*
+    حماية إضافية:
+    حتى لو تم استدعاء الدالة يدوياً، لا يبدأ النشاط
+    للمدرب أو الإدمن بدون اختيار دورة.
+  */
+  if(
+    getLoginRole() === "trainer" ||
+    getLoginRole() === "admin"
+  ){
+    const mandatoryCourseId =
+      document
+        .getElementById("trainerTargetCourse")
+        ?.value
+        ?.trim() || "";
+
+    if(!mandatoryCourseId){
+      alert(
+        "Please select a course first."
+      );
+      return;
+    }
+  }
+
+
   stopActivityTimer();
 
   /*
