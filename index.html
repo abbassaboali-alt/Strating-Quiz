@@ -309,7 +309,7 @@ button{font-family:inherit;cursor:pointer}
 
 .activity-filter-bar{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(220px,300px);
+  grid-template-columns:minmax(0,1fr) minmax(190px,250px) minmax(190px,250px);
   gap:12px;
   align-items:end;
   margin-bottom:16px;
@@ -2975,6 +2975,20 @@ button{font-family:inherit;cursor:pointer}
             <option value="video">🎥 Video</option>
 
           </select>
+
+        <div class="activity-filter-group">
+          <label for="activityQuestionGroupFilter">
+            <i class="fa-solid fa-layer-group"></i>
+            Question Group
+          </label>
+
+          <select
+            id="activityQuestionGroupFilter"
+            class="activity-type-select"
+            onchange="filterActivityCards()">
+            <option value="">🗂️ All Question Groups</option>
+          </select>
+        </div>
         </div>
 
       </div>
@@ -3211,6 +3225,7 @@ const USAGE_COLLECTION = "FunActivityUsage";
 
 let ACTIVITIES_CACHE = [];
 let OPEN_COURSES_CACHE = [];
+let ALL_COURSES_CACHE = [];
 
 let CURRENT_ACTIVITY = null;
 let CURRENT_COURSE = null;
@@ -4349,11 +4364,13 @@ async function loadOpenCourses(){
     .collection(COURSES_COLLECTION)
     .get();
 
-  OPEN_COURSES_CACHE = snap.docs
+  ALL_COURSES_CACHE = snap.docs
     .map(doc=>({
       id:doc.id,
       ...doc.data()
-    }))
+    }));
+
+  OPEN_COURSES_CACHE = ALL_COURSES_CACHE
     .filter(course=>{
       const status = first(course,[
         "status",
@@ -4363,6 +4380,179 @@ async function loadOpenCourses(){
 
       return isOpenStatus(status);
     });
+
+  /*
+    Important:
+    Any Individual session linked to a course that is no longer open
+    is closed automatically so students cannot see or enter it.
+  */
+  await closeIndividualSessionsForClosedCourses();
+}
+
+
+
+function getQuestionGroupName(question){
+  return String(
+    question?.group ||
+    question?.questionGroup ||
+    question?.quizGroup ||
+    question?.category ||
+    "General"
+  ).trim() || "General";
+}
+
+function getActivityQuestionGroups(activity){
+  const groups = [];
+
+  if(Array.isArray(activity?.quizGroups)){
+    activity.quizGroups.forEach(group=>{
+      const value = String(group || "").trim();
+      if(value) groups.push(value);
+    });
+  }
+
+  if(Array.isArray(activity?.questions)){
+    activity.questions.forEach(question=>{
+      groups.push(getQuestionGroupName(question));
+    });
+  }
+
+  if(!groups.length){
+    groups.push("General");
+  }
+
+  return [...new Set(groups)];
+}
+
+function activityBelongsToSelectedCourse(activity,selectedCourse){
+  if(!activity || !selectedCourse){
+    return false;
+  }
+
+  const activityCourseId = String(
+    activity.courseId ||
+    activity.CourseId ||
+    activity.courseID ||
+    ""
+  ).trim();
+
+  if(activityCourseId && activityCourseId === String(selectedCourse.id || "").trim()){
+    return true;
+  }
+
+  /*
+    Compatibility with older saved activities:
+    if the old activity has no usable course ID, match the exact course name.
+    Trainer ownership is intentionally NOT checked here.
+  */
+  const activityCourseName = clean(
+    activity.courseName ||
+    activity.TrainingCourse ||
+    activity.CourseName ||
+    ""
+  );
+
+  const selectedCourseName = clean(
+    getCourseName(selectedCourse)
+  );
+
+  return Boolean(
+    activityCourseName &&
+    selectedCourseName &&
+    activityCourseName === selectedCourseName
+  );
+}
+
+function updateQuestionGroupFilter(activities){
+  const select =
+    document.getElementById("activityQuestionGroupFilter");
+
+  if(!select){
+    return;
+  }
+
+  const previous = String(select.value || "").trim();
+
+  const groups = [...new Set(
+    (activities || [])
+      .flatMap(activity=>getActivityQuestionGroups(activity))
+      .filter(Boolean)
+  )].sort((a,b)=>
+    a.localeCompare(
+      b,
+      undefined,
+      {numeric:true,sensitivity:"base"}
+    )
+  );
+
+  select.innerHTML =
+    `<option value="">🗂️ All Question Groups</option>` +
+    groups.map(group=>
+      `<option value="${esc(group)}">${esc(group)}</option>`
+    ).join("");
+
+  if(groups.includes(previous)){
+    select.value = previous;
+  }
+}
+
+async function closeIndividualSessionsForClosedCourses(){
+  if(typeof db === "undefined"){
+    return;
+  }
+
+  try{
+    const openCourseIds =
+      new Set(
+        OPEN_COURSES_CACHE
+          .map(course=>String(course.id || "").trim())
+          .filter(Boolean)
+      );
+
+    const snapshot =
+      await db
+        .collection("FunActivityLiveSessions")
+        .where("status","==","active")
+        .get();
+
+    const toClose =
+      snapshot.docs.filter(doc=>{
+        const data = doc.data() || {};
+
+        return (
+          clean(data.mode) === "individual" &&
+          !openCourseIds.has(
+            String(data.courseId || "").trim()
+          )
+        );
+      });
+
+    if(!toClose.length){
+      return;
+    }
+
+    const batch = db.batch();
+
+    toClose.forEach(doc=>{
+      batch.update(doc.ref,{
+        status:"ended",
+        studentVisible:false,
+        endedReason:"course_closed",
+        endedAt:
+          firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:
+          firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    await batch.commit();
+
+  }catch(error){
+    console.warn(
+      "Unable to close Individual sessions for closed courses:",
+      error
+    );
+  }
 }
 
 
@@ -4446,6 +4636,14 @@ function normalizeImportedPracticeQuestion(question){
         source.answerMode ||
         "multiplechoice"
       ).trim().toLowerCase(),
+    group:
+      String(
+        source.group ||
+        source.questionGroup ||
+        source.quizGroup ||
+        source.category ||
+        "General"
+      ).trim() || "General",
     mediaType,
     mediaUrl,
     image:
@@ -4718,6 +4916,13 @@ function filterActivityCards(){
       typeSelect?.value || ""
     );
 
+  const selectedQuestionGroup =
+    clean(
+      document
+        .getElementById("activityQuestionGroupFilter")
+        ?.value || ""
+    );
+
   const cards = [
     ...document.querySelectorAll(
       ".open-activity-card"
@@ -4762,9 +4967,22 @@ function filterActivityCards(){
       !selectedType ||
       types.includes(selectedType);
 
+    const groups =
+      String(
+        card.dataset.groups || ""
+      )
+      .split("|||")
+      .map(group=>clean(group))
+      .filter(Boolean);
+
+    const matchesQuestionGroup =
+      !selectedQuestionGroup ||
+      groups.includes(selectedQuestionGroup);
+
     const matched =
       matchesSearch &&
-      matchesType;
+      matchesType &&
+      matchesQuestionGroup;
 
     card.classList.toggle(
       "hidden",
@@ -4901,6 +5119,17 @@ async function loadStudentActivities(){
       }
     }
 
+    const selectedCourseId =
+      document
+        .getElementById("trainerTargetCourse")
+        ?.value
+        ?.trim() || "";
+
+    const selectedCourse =
+      OPEN_COURSES_CACHE.find(
+        course=>course.id === selectedCourseId
+      ) || null;
+
     const available = ACTIVITIES_CACHE
       .filter(activity=>{
         const status = clean(
@@ -4912,22 +5141,23 @@ async function loadStudentActivities(){
             ? activity.questions
             : [];
 
-        /*
-          Trainer/Admin:
-          All open activities are available, even if created
-          for another trainer or another course.
-
-          Student/Guest:
-          The activity must still be linked to an open course.
-        */
-
         if(
           getLoginRole() === "trainer" ||
           getLoginRole() === "admin"
         ){
+          /*
+            After selecting a course, show ALL activities/question groups
+            belonging to that same course, even when they were created
+            by another trainer.
+          */
           return (
             status === "open" &&
-            questions.length > 0
+            questions.length > 0 &&
+            selectedCourse &&
+            activityBelongsToSelectedCourse(
+              activity,
+              selectedCourse
+            )
           );
         }
 
@@ -4937,6 +5167,8 @@ async function loadStudentActivities(){
           findCourseForActivity(activity)
         );
       });
+
+    updateQuestionGroupFilter(available);
 
     if(!available.length){
       box.className = "empty";
@@ -4986,6 +5218,7 @@ async function loadStudentActivities(){
           data-activity-id="${esc(activity.id || "")}"
           data-course-id="${esc(startCourseId || course?.id || "")}"
           data-types="${esc(getActivityGameTypes(activity).join(","))}"
+          data-groups="${esc(getActivityQuestionGroups(activity).join("|||"))}"
           data-search="${esc([
             activity.title || "",
             activity.description || "",
@@ -4999,7 +5232,8 @@ async function loadStudentActivities(){
               : (activity.trainerName || ""),
             getActivityGameTypes(activity)
               .map(type=>getGameTypeInfo(type).label)
-              .join(" ")
+              .join(" "),
+            getActivityQuestionGroups(activity).join(" ")
           ].join(" ").toLowerCase())}">
 
           <div class="activity-card-head">
@@ -5053,6 +5287,11 @@ async function loadStudentActivities(){
                       "Not specified"
                     )
               )}
+            </span>
+
+            <span class="mini">
+              <i class="fa-solid fa-layer-group"></i>
+              ${esc(getActivityQuestionGroups(activity).join(", "))}
             </span>
 
             <span class="mini">
@@ -13603,6 +13842,28 @@ window.addEventListener(
       const course =
         selectedCourse;
 
+      const latestCourseRecord =
+        ALL_COURSES_CACHE.find(
+          item=>String(item.id || "").trim() ===
+                String(course.id || "").trim()
+        ) || course;
+
+      const latestCourseStatus =
+        first(
+          latestCourseRecord,
+          ["status","Status","courseStatus"],
+          ""
+        );
+
+      if(!isOpenStatus(latestCourseStatus)){
+        await closeIndividualSessionsForClosedCourses();
+
+        alert(
+          "This course is closed. Individual activity cannot be opened for students."
+        );
+        return;
+      }
+
       if(!activity){
 
         alert(
@@ -15007,6 +15268,11 @@ window.addEventListener(
         normalize(item.mode) === "individual" &&
         normalize(item.status) === "active" &&
         item.studentVisible !== false &&
+        OPEN_COURSES_CACHE.some(
+          course=>
+            safe(course.id) ===
+            safe(item.courseId)
+        ) &&
         sessionBelongsToCurrentUser(item)
       )
       .sort((a,b)=>
