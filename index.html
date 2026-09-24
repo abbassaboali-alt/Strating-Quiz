@@ -343,6 +343,147 @@ button{font-family:inherit;cursor:pointer}
   font-weight:800;
 }
 
+
+/* =====================================
+   TRAINER — INTERACTIVE QUESTION TYPE CARDS
+===================================== */
+.trainer-type-picker{
+  margin:8px 0 18px;
+}
+.trainer-type-picker-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:end;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+}
+.trainer-type-picker-title{
+  font-size:18px;
+  font-weight:900;
+  color:var(--blue);
+}
+.trainer-type-picker-subtitle{
+  margin-top:3px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+}
+.trainer-type-cards{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+}
+.trainer-type-card{
+  position:relative;
+  min-width:0;
+  min-height:150px;
+  border:1.5px solid var(--border);
+  border-radius:22px;
+  padding:17px;
+  background:#fff;
+  color:var(--text);
+  text-align:left;
+  overflow:hidden;
+  transition:transform .2s,border-color .2s,box-shadow .2s,background .2s;
+  box-shadow:0 8px 22px rgba(22,68,120,.06);
+}
+.trainer-type-card::after{
+  content:"";
+  position:absolute;
+  width:86px;
+  height:86px;
+  right:-28px;
+  top:-28px;
+  border-radius:50%;
+  background:var(--type-soft,#eef6fd);
+  pointer-events:none;
+}
+.trainer-type-card:hover{
+  transform:translateY(-3px);
+  border-color:var(--type-color,var(--blue2));
+  box-shadow:0 14px 28px rgba(22,68,120,.12);
+}
+.trainer-type-card.active{
+  border:2px solid var(--type-color,var(--blue2));
+  background:linear-gradient(145deg,#fff,var(--type-soft,#f4f9fd));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--type-color,var(--blue2)) 12%,transparent),
+             0 14px 28px rgba(22,68,120,.12);
+}
+.trainer-type-card-top{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding-right:20px;
+}
+.trainer-type-card-icon{
+  width:50px;
+  height:50px;
+  flex:0 0 50px;
+  display:grid;
+  place-items:center;
+  border-radius:15px;
+  background:var(--type-soft,#eef6fd);
+  color:var(--type-color,var(--blue));
+  font-size:22px;
+}
+.trainer-type-card-name{
+  min-width:0;
+  font-size:15px;
+  line-height:1.35;
+  font-weight:900;
+  color:#102f4d;
+}
+.trainer-type-card-bottom{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:17px;
+}
+.trainer-type-card-count{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+.trainer-type-card-number{
+  min-width:38px;
+  height:38px;
+  padding:0 10px;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  background:var(--type-color,var(--blue));
+  color:#fff;
+  font-weight:900;
+  font-size:14px;
+}
+.trainer-type-card.all-type{
+  --type-color:#164478;
+  --type-soft:#edf4fa;
+}
+.trainer-type-empty{
+  grid-column:1/-1;
+  padding:18px;
+  border:1px dashed var(--border);
+  border-radius:18px;
+  color:var(--muted);
+  text-align:center;
+  font-weight:800;
+  background:#fbfdff;
+}
+@media(max-width:850px){
+  .trainer-type-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:520px){
+  .trainer-type-cards{grid-template-columns:1fr}
+  .trainer-type-card{min-height:128px;padding:14px}
+}
+
 @media(max-width:700px){
   .activity-filter-bar{
     grid-template-columns:1fr;
@@ -3044,7 +3185,6 @@ button{font-family:inherit;cursor:pointer}
             onchange="filterActivityCards()">
 
             <option value="">🎮 All Activities</option>
-            <option value="wheel">🎡 Wheel of Fortune</option>
             <option value="wheelmcq">🎡✅ Wheel + Multiple Choice</option>
             <option value="random">🖼️ Random Image</option>
             <option value="balloon">🎈 Balloon Pop</option>
@@ -3084,6 +3224,21 @@ button{font-family:inherit;cursor:pointer}
       </div>
 
       <div id="activityFilterCount" class="activity-filter-count"></div>
+
+      <div id="trainerQuestionTypePicker" class="trainer-type-picker hidden">
+        <div class="trainer-type-picker-head">
+          <div>
+            <div class="trainer-type-picker-title">
+              <i class="fa-solid fa-shapes"></i>
+              Choose Question Type
+            </div>
+            <div class="trainer-type-picker-subtitle">
+              Select a type to show activities that contain it. The number shows how many questions of that type are available.
+            </div>
+          </div>
+        </div>
+        <div id="trainerQuestionTypeCards" class="trainer-type-cards"></div>
+      </div>
 
       <div id="openActivitiesBox" class="empty">
         Loading activities and open courses...
@@ -5003,6 +5158,283 @@ function renderActivityGameBadges(activity){
     .join("");
 }
 
+
+function getQuestionTypeCountsForActivities(activities){
+
+  const counts = {};
+
+  (Array.isArray(activities) ? activities : [])
+    .forEach(activity=>{
+
+      (Array.isArray(activity?.questions)
+        ? activity.questions
+        : []
+      ).forEach(question=>{
+
+        const type =
+          clean(question?.type || "mcq");
+
+        /* Wheel of Fortune is legacy-only and is not offered in the new picker. */
+        if(!type || type === "wheel"){
+          return;
+        }
+
+        counts[type] =
+          (counts[type] || 0) + 1;
+
+      });
+
+    });
+
+  return counts;
+}
+
+function getTrainerTypeCardTheme(type){
+
+  const themes = {
+    mcq:["#08744f","#e5f8f0"],
+    match:["#155a8a","#e7f4fd"],
+    order:["#9a4d00","#fff0df"],
+    random:["#6c3483","#f4e8fb"],
+    wheelmcq:["#8a6500","#fff7d9"],
+    balloon:["#a61f55","#ffe8f1"],
+    mystery:["#6b4b00","#fff3c9"],
+    bomb:["#8b1e1e","#ffe8e6"],
+    text:["#7a3e00","#fff4e7"],
+    voice:["#9b2445","#fde9ef"],
+    audio:["#34495e","#edf2f6"],
+    video:["#34495e","#edf2f6"],
+    listenchoose:["#2474b5","#eaf4ff"],
+    listenrepeat:["#df2f68","#fff0f5"],
+    buildword:["#0b9b6a","#eafaf4"],
+    buildsentence:["#9b3fc0","#f7ecfc"],
+    catchanswer:["#e86f08","#fff3e7"],
+    movechoose:["#ef4a3b","#fff0ee"]
+  };
+
+  return themes[type] || ["#164478","#edf4fa"];
+}
+
+function renderTrainerQuestionTypeCards(activities){
+
+  const picker =
+    document.getElementById(
+      "trainerQuestionTypePicker"
+    );
+
+  const host =
+    document.getElementById(
+      "trainerQuestionTypeCards"
+    );
+
+  if(!picker || !host){
+    return;
+  }
+
+  const role = getLoginRole();
+
+  if(
+    role !== "trainer" &&
+    role !== "admin"
+  ){
+    picker.classList.add("hidden");
+    host.innerHTML = "";
+    return;
+  }
+
+  const counts =
+    getQuestionTypeCountsForActivities(
+      activities
+    );
+
+  const typeOrder = [
+    "listenchoose",
+    "listenrepeat",
+    "buildword",
+    "buildsentence",
+    "catchanswer",
+    "movechoose",
+    "mcq",
+    "match",
+    "order",
+    "random",
+    "wheelmcq",
+    "balloon",
+    "mystery",
+    "bomb",
+    "text",
+    "voice",
+    "audio",
+    "video"
+  ];
+
+  const types =
+    typeOrder.filter(
+      type=>Number(counts[type] || 0) > 0
+    );
+
+  const totalQuestions =
+    Object.values(counts)
+      .reduce(
+        (sum,value)=>
+          sum + Number(value || 0),
+        0
+      );
+
+  const selectedType =
+    clean(
+      document
+        .getElementById("activityTypeFilter")
+        ?.value || ""
+    );
+
+  picker.classList.remove("hidden");
+
+  const allCard = `
+    <button
+      type="button"
+      class="trainer-type-card all-type ${!selectedType ? "active" : ""}"
+      onclick="selectTrainerQuestionType('')"
+      aria-pressed="${!selectedType ? "true" : "false"}">
+
+      <div class="trainer-type-card-top">
+        <span class="trainer-type-card-icon">
+          <i class="fa-solid fa-layer-group"></i>
+        </span>
+        <span class="trainer-type-card-name">
+          All Question Types
+        </span>
+      </div>
+
+      <div class="trainer-type-card-bottom">
+        <span class="trainer-type-card-count">
+          ${totalQuestions} ${totalQuestions === 1 ? "Question" : "Questions"}
+        </span>
+        <span class="trainer-type-card-number">
+          ${totalQuestions}
+        </span>
+      </div>
+    </button>
+  `;
+
+  const cards =
+    types.map(type=>{
+
+      const info =
+        getGameTypeInfo(type);
+
+      const count =
+        Number(counts[type] || 0);
+
+      const [color,soft] =
+        getTrainerTypeCardTheme(type);
+
+      return `
+        <button
+          type="button"
+          class="trainer-type-card ${selectedType === type ? "active" : ""}"
+          style="
+            --type-color:${color};
+            --type-soft:${soft};
+          "
+          onclick="selectTrainerQuestionType('${esc(type)}')"
+          aria-pressed="${selectedType === type ? "true" : "false"}">
+
+          <div class="trainer-type-card-top">
+            <span class="trainer-type-card-icon">
+              <i class="${info.icon}"></i>
+            </span>
+
+            <span class="trainer-type-card-name">
+              ${esc(info.label)}
+            </span>
+          </div>
+
+          <div class="trainer-type-card-bottom">
+            <span class="trainer-type-card-count">
+              ${count} ${count === 1 ? "Question" : "Questions"}
+            </span>
+
+            <span class="trainer-type-card-number">
+              ${count}
+            </span>
+          </div>
+
+        </button>
+      `;
+    })
+    .join("");
+
+  host.innerHTML =
+    allCard +
+    (
+      cards ||
+      `<div class="trainer-type-empty">
+        No question types are available for the selected course.
+      </div>`
+    );
+}
+
+function selectTrainerQuestionType(type){
+
+  const select =
+    document.getElementById(
+      "activityTypeFilter"
+    );
+
+  if(select){
+    select.value =
+      String(type || "");
+  }
+
+  filterActivityCards();
+
+  /* Repaint the cards so the selected design changes immediately. */
+  const selectedCourseId =
+    document
+      .getElementById("trainerTargetCourse")
+      ?.value
+      ?.trim() || "";
+
+  const selectedCourse =
+    OPEN_COURSES_CACHE.find(
+      course=>course.id === selectedCourseId
+    ) || null;
+
+  const relevant =
+    ACTIVITIES_CACHE.filter(activity=>{
+
+      const status =
+        clean(activity.status || "open");
+
+      const questions =
+        Array.isArray(activity.questions)
+          ? activity.questions
+          : [];
+
+      return (
+        status === "open" &&
+        questions.length > 0 &&
+        selectedCourse &&
+        activityBelongsToSelectedCourse(
+          activity,
+          selectedCourse
+        )
+      );
+    });
+
+  renderTrainerQuestionTypeCards(
+    relevant
+  );
+
+  document
+    .getElementById("openActivitiesBox")
+    ?.scrollIntoView({
+      behavior:"smooth",
+      block:"start"
+    });
+}
+
 function normalizeSearchText(value){
   return String(value || "")
     .toLowerCase()
@@ -5133,6 +5565,39 @@ function filterActivityCards(){
       `Showing ${visibleCount} of ${cards.length} Activities`;
 
   }
+
+  const selectedForCards =
+    clean(
+      document
+        .getElementById("activityTypeFilter")
+        ?.value || ""
+    );
+
+  document
+    .querySelectorAll(
+      "#trainerQuestionTypeCards .trainer-type-card"
+    )
+    .forEach((card,index)=>{
+
+      const pressed =
+        index === 0
+          ? !selectedForCards
+          : card
+              .getAttribute("onclick")
+              ?.includes(
+                "'" + selectedForCards + "'"
+              );
+
+      card.classList.toggle(
+        "active",
+        Boolean(pressed)
+      );
+
+      card.setAttribute(
+        "aria-pressed",
+        pressed ? "true" : "false"
+      );
+    });
 }
 
 async function loadStudentActivities(){
@@ -5241,6 +5706,10 @@ async function loadStudentActivities(){
           );
         }
 
+        document
+          .getElementById("trainerQuestionTypePicker")
+          ?.classList.add("hidden");
+
         return;
       }
     }
@@ -5295,6 +5764,7 @@ async function loadStudentActivities(){
       });
 
     updateQuestionGroupFilter(available);
+    renderTrainerQuestionTypeCards(available);
 
     if(!available.length){
       box.className = "empty";
