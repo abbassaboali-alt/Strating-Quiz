@@ -484,6 +484,26 @@ button{font-family:inherit;cursor:pointer}
   .trainer-type-card{min-height:128px;padding:14px}
 }
 
+/* Trainer activity-type cards — rich interactive design */
+.trainer-type-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.trainer-type-card{min-height:285px;padding:20px;border-radius:24px;display:flex;flex-direction:column;justify-content:flex-start}
+.trainer-type-card-top{align-items:flex-start;padding-right:26px}
+.trainer-type-card-icon{width:58px;height:58px;flex:0 0 58px;border-radius:18px;font-size:27px}
+.trainer-type-card-name{font-size:18px;line-height:1.3;margin-top:3px}
+.trainer-type-card-tag{display:inline-flex;align-items:center;width:max-content;max-width:100%;margin:7px 0 0 69px;padding:5px 10px;border-radius:999px;background:var(--type-soft,#eef6fd);color:var(--type-color,var(--blue));font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.2px}
+.trainer-type-card-desc{position:relative;z-index:1;margin:18px 0 14px;color:#60758a;font-size:12px;font-weight:700;line-height:1.7;min-height:42px}
+.trainer-type-card-preview{position:relative;z-index:1;min-height:82px;border:1.5px dashed color-mix(in srgb,var(--type-color,var(--blue2)) 45%,#fff);border-radius:18px;background:color-mix(in srgb,var(--type-soft,#eef6fd) 52%,#fff);display:flex;align-items:center;justify-content:center;gap:9px;padding:13px;overflow:hidden}
+.trainer-type-card-preview .demo-pill{padding:7px 11px;border:1px solid #d8e4ed;border-radius:11px;background:#fff;color:#12324f;font-size:11px;font-weight:900;box-shadow:0 4px 10px rgba(22,68,120,.06)}
+.trainer-type-card-preview .demo-circle{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--type-color,var(--blue));color:#fff;font-weight:900}
+.trainer-type-card-preview .demo-letter{width:34px;height:38px;border:2px solid var(--type-color,var(--green));border-radius:10px;display:grid;place-items:center;background:#fff;color:var(--type-color,var(--green));font-weight:900}
+.trainer-type-card-preview .demo-go{font-size:20px;font-weight:900;color:var(--type-color,var(--red))}
+.trainer-type-card-bottom{margin-top:auto;padding-top:15px}
+.trainer-type-card-count{font-size:12px;font-weight:900}
+.trainer-type-card.all-type{min-height:180px;justify-content:center}
+.trainer-type-card.all-type .trainer-type-card-bottom{margin-top:22px}
+@media(max-width:850px){.trainer-type-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.trainer-type-cards{grid-template-columns:1fr}.trainer-type-card{min-height:250px}.trainer-type-card.all-type{min-height:155px}}
+
 /* =====================================
    QUESTION TYPE GROUPS — POPUP
 ===================================== */
@@ -5313,160 +5333,58 @@ function getTrainerTypeCardTheme(type){
   return themes[type] || ["#164478","#edf4fa"];
 }
 
+function getTrainerTypeCardContent(type){
+  const content = {
+    listenchoose:{tag:"LISTENING",desc:"Listen to a word or sentence, then choose the correct picture or answer.",preview:`<span class="demo-circle">▶</span><span class="demo-pill">🍎 Apple</span><span class="demo-pill">🍌 Banana</span>`},
+    listenrepeat:{tag:"PRONUNCIATION",desc:"Play the model audio, then let the child record and repeat the word or sentence.",preview:`<span class="demo-circle">🔊</span><span class="demo-pill">Hello, teacher!</span><span class="demo-circle">🎙</span>`},
+    buildword:{tag:"SPELLING",desc:"Show a picture and let the child arrange shuffled letters to build the correct word.",preview:`<span style="font-size:30px">🍎</span><span class="demo-letter">P</span><span class="demo-letter">A</span><span class="demo-letter">L</span><span class="demo-letter">E</span>`},
+    buildsentence:{tag:"SENTENCE",desc:"Arrange shuffled words in the correct order to make a complete sentence.",preview:`<span class="demo-pill">This</span><span class="demo-pill">is</span><span class="demo-pill">my</span><span class="demo-pill">mother.</span>`},
+    catchanswer:{tag:"SPEED GAME",desc:"Answers move around the play area. Catch the correct answer before time runs out.",preview:`<span class="demo-pill">CAT</span><span style="font-size:26px">🎯</span><span class="demo-pill">DOG</span>`},
+    movechoose:{tag:"PHYSICAL ACTIVITY",desc:"A classroom movement challenge: find, touch, point, jump or act before the countdown ends.",preview:`<span class="demo-circle">3</span><span class="demo-circle">2</span><span class="demo-circle">1</span><span class="demo-go">GO! 🏃</span>`},
+    mcq:{tag:"QUIZ",desc:"Choose the correct answer from multiple options.",preview:`<span class="demo-pill">A</span><span class="demo-pill">B</span><span class="demo-pill">C</span>`},
+    match:{tag:"MATCHING",desc:"Match each item with its correct word, picture or answer.",preview:`<span class="demo-pill">Apple</span><span style="font-size:22px">🔗</span><span class="demo-pill">🍎</span>`},
+    order:{tag:"SEQUENCE",desc:"Put the items in the correct order or sequence.",preview:`<span class="demo-pill">1</span><span class="demo-pill">2</span><span class="demo-pill">3</span>`},
+    random:{tag:"RANDOM IMAGE",desc:"Reveal a random image and use it as an interactive question prompt.",preview:`<span style="font-size:34px">🖼️</span><span class="demo-pill">Random</span>`},
+    wheelmcq:{tag:"WHEEL GAME",desc:"Spin the wheel, reveal a question and answer it using multiple choice.",preview:`<span style="font-size:35px">🎡</span><span class="demo-pill">A</span><span class="demo-pill">B</span>`},
+    balloon:{tag:"GAME",desc:"Pop the balloon to reveal the question and answer it.",preview:`<span style="font-size:38px">🎈</span><span class="demo-pill">POP!</span>`},
+    mystery:{tag:"GAME",desc:"Open a mystery box to reveal a surprise question.",preview:`<span style="font-size:38px">🎁</span><span class="demo-pill">Open</span>`},
+    bomb:{tag:"CHALLENGE",desc:"Answer correctly before the bomb challenge ends.",preview:`<span style="font-size:38px">💣</span><span class="demo-pill">Defuse</span>`},
+    text:{tag:"WRITING",desc:"Write the answer directly in the activity.",preview:`<span class="demo-pill">Type your answer…</span>`},
+    voice:{tag:"SPEAKING",desc:"Use speaking and voice interaction for the activity.",preview:`<span class="demo-circle">🎤</span><span class="demo-pill">Speak</span>`},
+    audio:{tag:"AUDIO",desc:"Listen to audio content as part of the activity.",preview:`<span class="demo-circle">▶</span><span class="demo-pill">🔊 Audio</span>`},
+    video:{tag:"VIDEO",desc:"Watch video content as part of the activity.",preview:`<span class="demo-circle">▶</span><span class="demo-pill">🎥 Video</span>`}
+  };
+  return content[type] || {tag:"ACTIVITY",desc:"Interactive English activity.",preview:`<span class="demo-pill">Interactive</span>`};
+}
+
 function renderTrainerQuestionTypeCards(activities){
-
-  const picker =
-    document.getElementById(
-      "trainerQuestionTypePicker"
-    );
-
-  const host =
-    document.getElementById(
-      "trainerQuestionTypeCards"
-    );
-
-  if(!picker || !host){
-    return;
+  const picker=document.getElementById("trainerQuestionTypePicker");
+  const host=document.getElementById("trainerQuestionTypeCards");
+  if(!picker || !host) return;
+  const role=getLoginRole();
+  if(role !== "trainer" && role !== "admin"){
+    picker.classList.add("hidden"); host.innerHTML=""; return;
   }
-
-  const role = getLoginRole();
-
-  if(
-    role !== "trainer" &&
-    role !== "admin"
-  ){
-    picker.classList.add("hidden");
-    host.innerHTML = "";
-    return;
-  }
-
-  const counts =
-    getQuestionTypeCountsForActivities(
-      activities
-    );
-
-  const typeOrder = [
-    "listenchoose",
-    "listenrepeat",
-    "buildword",
-    "buildsentence",
-    "catchanswer",
-    "movechoose",
-    "mcq",
-    "match",
-    "order",
-    "random",
-    "wheelmcq",
-    "balloon",
-    "mystery",
-    "bomb",
-    "text",
-    "voice",
-    "audio",
-    "video"
-  ];
-
-  const types =
-    typeOrder.filter(
-      type=>Number(counts[type] || 0) > 0
-    );
-
-  const totalGroups =
-    (Array.isArray(activities) ? activities : [])
-      .length;
-
-  const selectedType =
-    clean(
-      document
-        .getElementById("activityTypeFilter")
-        ?.value || ""
-    );
-
+  const counts=getQuestionTypeCountsForActivities(activities);
+  const typeOrder=["listenchoose","listenrepeat","buildword","buildsentence","catchanswer","movechoose","mcq","match","order","random","wheelmcq","balloon","mystery","bomb","text","voice","audio","video"];
+  const types=typeOrder.filter(type=>Number(counts[type]||0)>0);
+  const totalGroups=(Array.isArray(activities)?activities:[]).length;
+  const selectedType=clean(document.getElementById("activityTypeFilter")?.value||"");
   picker.classList.remove("hidden");
-
-  const allCard = `
-    <button
-      type="button"
-      class="trainer-type-card all-type ${!selectedType ? "active" : ""}"
-      onclick="selectTrainerQuestionType('')"
-      aria-pressed="${!selectedType ? "true" : "false"}">
-
-      <div class="trainer-type-card-top">
-        <span class="trainer-type-card-icon">
-          <i class="fa-solid fa-layer-group"></i>
-        </span>
-        <span class="trainer-type-card-name">
-          All Question Types
-        </span>
-      </div>
-
-      <div class="trainer-type-card-bottom">
-        <span class="trainer-type-card-count">
-          ${totalGroups} ${totalGroups === 1 ? "Group" : "Groups"}
-        </span>
-        <span class="trainer-type-card-number">
-          ${totalGroups}
-        </span>
-      </div>
-    </button>
-  `;
-
-  const cards =
-    types.map(type=>{
-
-      const info =
-        getGameTypeInfo(type);
-
-      const count =
-        Number(counts[type] || 0);
-
-      const [color,soft] =
-        getTrainerTypeCardTheme(type);
-
-      return `
-        <button
-          type="button"
-          class="trainer-type-card ${selectedType === type ? "active" : ""}"
-          style="
-            --type-color:${color};
-            --type-soft:${soft};
-          "
-          onclick="selectTrainerQuestionType('${esc(type)}')"
-          aria-pressed="${selectedType === type ? "true" : "false"}">
-
-          <div class="trainer-type-card-top">
-            <span class="trainer-type-card-icon">
-              <i class="${info.icon}"></i>
-            </span>
-
-            <span class="trainer-type-card-name">
-              ${esc(info.label)}
-            </span>
-          </div>
-
-          <div class="trainer-type-card-bottom">
-            <span class="trainer-type-card-count">
-              ${count} ${count === 1 ? "Group" : "Groups"}
-            </span>
-
-            <span class="trainer-type-card-number">
-              ${count}
-            </span>
-          </div>
-
-        </button>
-      `;
-    })
-    .join("");
-
-  host.innerHTML =
-    allCard +
-    (
-      cards ||
-      `<div class="trainer-type-empty">
-        No question types are available for the selected course.
-      </div>`
-    );
+  const allCard=`<button type="button" class="trainer-type-card all-type ${!selectedType?"active":""}" onclick="selectTrainerQuestionType('')" aria-pressed="${!selectedType?"true":"false"}">
+    <div class="trainer-type-card-top"><span class="trainer-type-card-icon"><i class="fa-solid fa-layer-group"></i></span><span class="trainer-type-card-name">All Question Types</span></div>
+    <div class="trainer-type-card-bottom"><span class="trainer-type-card-count">${totalGroups} ${totalGroups===1?"Group":"Groups"}</span><span class="trainer-type-card-number">${totalGroups}</span></div></button>`;
+  const cards=types.map(type=>{
+    const info=getGameTypeInfo(type), count=Number(counts[type]||0), [color,soft]=getTrainerTypeCardTheme(type), content=getTrainerTypeCardContent(type);
+    return `<button type="button" class="trainer-type-card ${selectedType===type?"active":""}" style="--type-color:${color};--type-soft:${soft};" onclick="selectTrainerQuestionType('${esc(type)}')" aria-pressed="${selectedType===type?"true":"false"}">
+      <div class="trainer-type-card-top"><span class="trainer-type-card-icon"><i class="${info.icon}"></i></span><span class="trainer-type-card-name">${esc(info.label)}</span></div>
+      <span class="trainer-type-card-tag">${esc(content.tag)}</span>
+      <div class="trainer-type-card-desc">${esc(content.desc)}</div>
+      <div class="trainer-type-card-preview">${content.preview}</div>
+      <div class="trainer-type-card-bottom"><span class="trainer-type-card-count">${count} ${count===1?"Group":"Groups"}</span><span class="trainer-type-card-number">${count}</span></div>
+    </button>`;
+  }).join("");
+  host.innerHTML=allCard+(cards||`<div class="trainer-type-empty">No question types are available for the selected course.</div>`);
 }
 
 function selectTrainerQuestionType(type){
