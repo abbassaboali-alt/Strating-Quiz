@@ -484,6 +484,83 @@ button{font-family:inherit;cursor:pointer}
   .trainer-type-card{min-height:128px;padding:14px}
 }
 
+/* =====================================
+   QUESTION TYPE GROUPS — POPUP
+===================================== */
+.question-groups-modal{
+  position:fixed;
+  inset:0;
+  z-index:5000;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:22px;
+  background:rgba(13,35,55,.58);
+  backdrop-filter:blur(5px);
+}
+.question-groups-modal.show{display:flex}
+.question-groups-modal-card{
+  width:min(1180px,96vw);
+  max-height:92vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:25px;
+  box-shadow:0 30px 80px rgba(0,0,0,.28);
+}
+.question-groups-modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:17px 20px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(135deg,#f8fbfd,#fff);
+}
+.question-groups-modal-title{
+  color:var(--blue);
+  font-size:19px;
+  font-weight:900;
+}
+.question-groups-modal-subtitle{
+  margin-top:3px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+}
+.question-groups-modal-close{
+  width:44px;
+  height:44px;
+  flex:0 0 44px;
+  border:0;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  background:#edf4fa;
+  color:var(--blue);
+  font-size:20px;
+}
+.question-groups-modal-body{
+  padding:18px;
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+#openActivitiesBox.question-groups-inline-hidden{
+  display:none;
+}
+#questionGroupsModalBody #openActivitiesBox{
+  display:grid;
+}
+@media(max-width:600px){
+  .question-groups-modal{padding:9px}
+  .question-groups-modal-card{width:100%;max-height:95vh;border-radius:18px}
+  .question-groups-modal-head{padding:13px 14px}
+  .question-groups-modal-body{padding:11px}
+}
+
+
 @media(max-width:700px){
   .activity-filter-bar{
     grid-template-columns:1fr;
@@ -3233,7 +3310,7 @@ button{font-family:inherit;cursor:pointer}
               Choose Question Type
             </div>
             <div class="trainer-type-picker-subtitle">
-              Select a type to show activities that contain it. The number shows how many questions of that type are available.
+              Select a type to open its saved activity groups. The number shows how many groups contain that question type.
             </div>
           </div>
         </div>
@@ -3242,6 +3319,25 @@ button{font-family:inherit;cursor:pointer}
 
       <div id="openActivitiesBox" class="empty">
         Loading activities and open courses...
+      </div>
+
+      <div id="questionGroupsModal" class="question-groups-modal" onclick="closeQuestionGroupsModal(event)">
+        <div class="question-groups-modal-card" onclick="event.stopPropagation()">
+          <div class="question-groups-modal-head">
+            <div>
+              <div id="questionGroupsModalTitle" class="question-groups-modal-title">
+                Saved Activity Groups
+              </div>
+              <div id="questionGroupsModalSubtitle" class="question-groups-modal-subtitle">
+                Choose an activity to start.
+              </div>
+            </div>
+            <button type="button" class="question-groups-modal-close" onclick="closeQuestionGroupsModal()" aria-label="Close">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div id="questionGroupsModalBody" class="question-groups-modal-body"></div>
+        </div>
       </div>
 
       <div id="activitySearchNoResults" class="search-no-results hidden">
@@ -5166,22 +5262,24 @@ function getQuestionTypeCountsForActivities(activities){
   (Array.isArray(activities) ? activities : [])
     .forEach(activity=>{
 
-      (Array.isArray(activity?.questions)
-        ? activity.questions
-        : []
-      ).forEach(question=>{
+      const activityTypes =
+        new Set(
+          (Array.isArray(activity?.questions)
+            ? activity.questions
+            : []
+          )
+          .map(question=>
+            clean(question?.type || "mcq")
+          )
+          .filter(type=>
+            type && type !== "wheel"
+          )
+        );
 
-        const type =
-          clean(question?.type || "mcq");
-
-        /* Wheel of Fortune is legacy-only and is not offered in the new picker. */
-        if(!type || type === "wheel"){
-          return;
-        }
-
+      /* Count this saved activity/group only once for each question type. */
+      activityTypes.forEach(type=>{
         counts[type] =
           (counts[type] || 0) + 1;
-
       });
 
     });
@@ -5273,13 +5371,9 @@ function renderTrainerQuestionTypeCards(activities){
       type=>Number(counts[type] || 0) > 0
     );
 
-  const totalQuestions =
-    Object.values(counts)
-      .reduce(
-        (sum,value)=>
-          sum + Number(value || 0),
-        0
-      );
+  const totalGroups =
+    (Array.isArray(activities) ? activities : [])
+      .length;
 
   const selectedType =
     clean(
@@ -5308,10 +5402,10 @@ function renderTrainerQuestionTypeCards(activities){
 
       <div class="trainer-type-card-bottom">
         <span class="trainer-type-card-count">
-          ${totalQuestions} ${totalQuestions === 1 ? "Question" : "Questions"}
+          ${totalGroups} ${totalGroups === 1 ? "Group" : "Groups"}
         </span>
         <span class="trainer-type-card-number">
-          ${totalQuestions}
+          ${totalGroups}
         </span>
       </div>
     </button>
@@ -5352,7 +5446,7 @@ function renderTrainerQuestionTypeCards(activities){
 
           <div class="trainer-type-card-bottom">
             <span class="trainer-type-card-count">
-              ${count} ${count === 1 ? "Question" : "Questions"}
+              ${count} ${count === 1 ? "Group" : "Groups"}
             </span>
 
             <span class="trainer-type-card-number">
@@ -5377,19 +5471,20 @@ function renderTrainerQuestionTypeCards(activities){
 
 function selectTrainerQuestionType(type){
 
+  const selectedType =
+    String(type || "").trim();
+
   const select =
     document.getElementById(
       "activityTypeFilter"
     );
 
   if(select){
-    select.value =
-      String(type || "");
+    select.value = selectedType;
   }
 
   filterActivityCards();
 
-  /* Repaint the cards so the selected design changes immediately. */
   const selectedCourseId =
     document
       .getElementById("trainerTargetCourse")
@@ -5427,13 +5522,130 @@ function selectTrainerQuestionType(type){
     relevant
   );
 
-  document
-    .getElementById("openActivitiesBox")
-    ?.scrollIntoView({
-      behavior:"smooth",
-      block:"start"
-    });
+  openQuestionGroupsModal(selectedType);
 }
+
+function openQuestionGroupsModal(type){
+
+  const modal =
+    document.getElementById(
+      "questionGroupsModal"
+    );
+
+  const body =
+    document.getElementById(
+      "questionGroupsModalBody"
+    );
+
+  const title =
+    document.getElementById(
+      "questionGroupsModalTitle"
+    );
+
+  const subtitle =
+    document.getElementById(
+      "questionGroupsModalSubtitle"
+    );
+
+  const box =
+    document.getElementById(
+      "openActivitiesBox"
+    );
+
+  if(!modal || !body || !box){
+    return;
+  }
+
+  const normalized =
+    clean(type || "");
+
+  if(normalized){
+    const info =
+      getGameTypeInfo(normalized);
+
+    if(title){
+      title.innerHTML =
+        `<i class="${info.icon}"></i> ${esc(info.label)} — Activity Groups`;
+    }
+  }else if(title){
+    title.innerHTML =
+      `<i class="fa-solid fa-layer-group"></i> All Activity Groups`;
+  }
+
+  const visibleGroups =
+    [...box.querySelectorAll(".open-activity-card")]
+      .filter(card=>
+        !card.classList.contains("hidden")
+      )
+      .length;
+
+  if(subtitle){
+    subtitle.textContent =
+      `${visibleGroups} ${visibleGroups === 1 ? "Group" : "Groups"} available`;
+  }
+
+  box.classList.remove(
+    "question-groups-inline-hidden"
+  );
+
+  body.appendChild(box);
+
+  modal.classList.add("show");
+  document.body.style.overflow = "hidden";
+}
+
+function closeQuestionGroupsModal(event){
+
+  if(
+    event &&
+    event.target !== event.currentTarget
+  ){
+    return;
+  }
+
+  const modal =
+    document.getElementById(
+      "questionGroupsModal"
+    );
+
+  const box =
+    document.getElementById(
+      "openActivitiesBox"
+    );
+
+  const noResults =
+    document.getElementById(
+      "activitySearchNoResults"
+    );
+
+  modal?.classList.remove("show");
+
+  document.body.style.overflow = "";
+
+  /*
+    Return the activity container to its original place,
+    but keep it hidden under the type cards.
+  */
+  if(box && noResults){
+    noResults.insertAdjacentElement(
+      "beforebegin",
+      box
+    );
+
+    box.classList.add(
+      "question-groups-inline-hidden"
+    );
+  }
+}
+
+document.addEventListener(
+  "keydown",
+  function(event){
+    if(event.key === "Escape"){
+      closeQuestionGroupsModal();
+    }
+  }
+);
 
 function normalizeSearchText(value){
   return String(value || "")
@@ -5917,6 +6129,14 @@ async function loadStudentActivities(){
     }).join("");
 
     filterActivityCards();
+
+    /*
+      Do not show activity groups directly under the type cards.
+      They open only after the trainer/admin clicks a question type.
+    */
+    box.classList.add(
+      "question-groups-inline-hidden"
+    );
 
   }catch(error){
     console.error(error);
