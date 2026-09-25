@@ -8720,7 +8720,12 @@ function renderStudentQuestion(){
     questions[CURRENT_QUESTION_INDEX];
 
   const type =
-    question.type || "mcq";
+    String(question.type || "mcq")
+      .trim()
+      .toLowerCase()
+      .replaceAll("_","")
+      .replaceAll("-","")
+      .replaceAll(" ","");
 
   document
     .getElementById("questionNumber")
@@ -8833,7 +8838,7 @@ function renderStudentQuestion(){
       "mystery",
       "wheelmcq"
     ].includes(
-      String(type)
+      String(playType)
         .trim()
         .toLowerCase()
     );
@@ -8914,11 +8919,26 @@ function renderStudentQuestion(){
 
   answersBox.innerHTML = "";
 
+  /* Normalize AI / legacy aliases to the same professional game engines. */
+  const normalizedTypeAliases = {
+    "listenandchoose":"listenchoose",
+    "listenrepeat":"listenrepeat",
+    "listenandrepeat":"listenrepeat",
+    "buildtheword":"buildword",
+    "buildthesentence":"buildsentence",
+    "catchthecorrectanswer":"catchanswer",
+    "moveandchoose":"movechoose",
+    "mysterybox":"mystery"
+  };
+
+  const playType =
+    normalizedTypeAliases[type] || type;
+
   /*
     Bomb Defuse must be rendered before the normal question types.
     Otherwise it appears as a regular Multiple Choice question.
   */
-  if(type === "bomb"){
+  if(playType === "bomb"){
 
     document
       .getElementById("gameQuestion")
@@ -8934,7 +8954,7 @@ function renderStudentQuestion(){
     return;
   }
 
-  if(type === "match"){
+  if(playType === "match"){
     renderMatchQuestion(
       question,
       answersBox
@@ -8942,7 +8962,7 @@ function renderStudentQuestion(){
     return;
   }
 
-  if(type === "order"){
+  if(playType === "order"){
     renderOrderQuestion(
       question,
       answersBox
@@ -8950,7 +8970,7 @@ function renderStudentQuestion(){
     return;
   }
 
-  if(type === "random"){
+  if(playType === "random"){
     renderRandomImageQuestion(
       question,
       answersBox
@@ -8958,14 +8978,14 @@ function renderStudentQuestion(){
     return;
   }
 
-  if(type === "wheelmcq"){
+  if(playType === "wheelmcq"){
     document.getElementById("gameQuestion").textContent =
       "🎡 Spin the wheel to select a question number";
     renderWheelMcqQuestion(question,answersBox);
     return;
   }
 
-  if(type === "wheel"){
+  if(playType === "wheel"){
     renderWheelQuestion(
       question,
       answersBox
@@ -8973,7 +8993,7 @@ function renderStudentQuestion(){
     return;
   }
 
-  if(type === "balloon"){
+  if(playType === "balloon"){
     document
       .getElementById("gameQuestion")
       .textContent =
@@ -8987,7 +9007,7 @@ function renderStudentQuestion(){
     return;
   }
 
-  if(type === "mystery"){
+  if(playType === "mystery"){
     document
       .getElementById("gameQuestion")
       .textContent =
@@ -9005,32 +9025,32 @@ function renderStudentQuestion(){
      NEW KIDS ACTIVITY DESIGNS
      These player screens are ready for the new creator types.
   ====================================================== */
-  if(type === "listenchoose"){
+  if(playType === "listenchoose"){
     renderKidsListenChoose(question,answersBox);
     return;
   }
 
-  if(type === "listenrepeat"){
+  if(playType === "listenrepeat"){
     renderKidsListenRepeat(question,answersBox);
     return;
   }
 
-  if(type === "buildword"){
+  if(playType === "buildword"){
     renderKidsBuildWord(question,answersBox);
     return;
   }
 
-  if(type === "buildsentence"){
+  if(playType === "buildsentence"){
     renderKidsBuildSentence(question,answersBox);
     return;
   }
 
-  if(type === "catchanswer"){
+  if(playType === "catchanswer"){
     renderKidsCatchAnswer(question,answersBox);
     return;
   }
 
-  if(type === "movechoose"){
+  if(playType === "movechoose"){
     renderKidsMoveChoose(question,answersBox);
     return;
   }
@@ -9245,7 +9265,25 @@ function gradeKidsTrainerActivity(correct){
   if(ANSWER_LOCKED)return;
   ANSWER_LOCKED=true;
   recordCurrentTeamAnswer(Boolean(correct));
-  if(correct){CURRENT_SCORE++; if(typeof playCorrectSound==="function")playCorrectSound();}
+  if(correct){
+    const currentQuestion =
+      CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX] || {};
+    const earnedPoints =
+      Math.max(1, Number(currentQuestion.points || 1) || 1);
+
+    CURRENT_SCORE += earnedPoints;
+
+    if(typeof playCorrectSound==="function"){
+      playCorrectSound();
+    }
+
+    const reward =
+      String(currentQuestion.reward || "").trim();
+
+    if(reward){
+      showToast("🏆 " + reward + "  +" + earnedPoints + " points");
+    }
+  }
   else if(typeof playWrongSound==="function")playWrongSound();
   const feedback=document.getElementById("feedback");
   if(feedback){
