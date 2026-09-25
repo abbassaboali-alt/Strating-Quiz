@@ -4252,26 +4252,34 @@ function getTrainerCourses(){
     Admin:
     Can link any open course.
   */
-
   if(role === "admin"){
     return [...OPEN_COURSES_CACHE];
   }
 
   /*
     Trainer:
-    Only courses assigned to the logged-in username.
+    Show only open courses assigned to the logged-in trainer.
+    Prudle has used more than one session key over time, so compare
+    every available trainer identity instead of relying on username only.
   */
-
   if(role !== "trainer"){
     return [];
   }
 
-  const username =
-    clean(
-      getLoginUsername()
-    );
+  const trainerIdentities = [
+    localStorage.getItem("username"),
+    localStorage.getItem("trainerName"),
+    localStorage.getItem("userName"),
+    localStorage.getItem("displayName"),
+    localStorage.getItem("fullName")
+  ]
+  .map(value=>clean(value))
+  .filter(Boolean);
 
-  if(!username){
+  const uniqueTrainerIdentities =
+    [...new Set(trainerIdentities)];
+
+  if(!uniqueTrainerIdentities.length){
     return [];
   }
 
@@ -4294,16 +4302,20 @@ function getTrainerCourses(){
       course.trainerUsername,
       course.TrainerUsername,
       course.trainerEmail,
-      course.TrainerEmail
+      course.TrainerEmail,
+      course.assignedTrainer,
+      course.AssignedTrainer
     ]
     .map(value=>clean(value))
     .filter(Boolean);
 
-    return possibleTrainerValues.includes(
-      username
+    return uniqueTrainerIdentities.some(
+      identity=>
+        possibleTrainerValues.includes(identity)
     );
   });
 }
+
 
 function setupActorPanel(){
 
@@ -5951,8 +5963,8 @@ async function loadStudentActivities(){
               '${esc(activity.id)}',
               '${esc(startCourseId)}'
             )">
-            <i class="fa-solid fa-play"></i>
-            Start Activity
+            <i class="fa-solid fa-gamepad"></i>
+            Try / Start Game
           </button>
 
         </article>
@@ -13710,6 +13722,34 @@ window.addEventListener(
       localStorage.setItem(
         "username",
         String(data.username)
+      );
+    }
+
+    if(data.trainerName){
+      localStorage.setItem(
+        "trainerName",
+        String(data.trainerName)
+      );
+    }
+
+    if(data.userName){
+      localStorage.setItem(
+        "userName",
+        String(data.userName)
+      );
+    }
+
+    if(data.displayName){
+      localStorage.setItem(
+        "displayName",
+        String(data.displayName)
+      );
+    }
+
+    if(data.fullName){
+      localStorage.setItem(
+        "fullName",
+        String(data.fullName)
       );
     }
 
