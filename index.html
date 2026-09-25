@@ -4057,101 +4057,14 @@ function clean(value){
 }
 
 function buildRevealedQuestionMedia(question){
-
-  const mediaType =
-    String(
-      question?.mediaType ||
-      (
-        question?.video
-          ? "video"
-          : question?.audio
-            ? "audio"
-            : question?.image
-              ? "image"
-              : "none"
-      )
-    )
-    .trim()
-    .toLowerCase();
-
-  const mediaUrl =
-    String(
-      question?.mediaUrl ||
-      question?.video ||
-      question?.audio ||
-      question?.image ||
-      ""
-    ).trim();
-
-  if(
-    !mediaUrl ||
-    mediaType === "none"
-  ){
-    return "";
-  }
-
-  if(mediaType === "image"){
-
-    return `
-      <div class="revealed-question-media">
-        <img
-          src="${esc(mediaUrl)}"
-          alt="Question image"
-          onerror="this.parentElement.style.display='none'">
-      </div>
-    `;
-
-  }
-
-  if(mediaType === "video"){
-
-    const youtubeEmbedUrl =
-      toYouTubeEmbedUrl(
-        mediaUrl
-      );
-
-    if(youtubeEmbedUrl){
-
-      return `
-        <div class="revealed-question-media">
-          <iframe
-            src="${esc(youtubeEmbedUrl)}"
-            title="YouTube question video"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowfullscreen>
-          </iframe>
-        </div>
-      `;
-
-    }
-
-    return `
-      <div class="revealed-question-media">
-        <video
-          src="${esc(mediaUrl)}"
-          controls
-          playsinline>
-        </video>
-      </div>
-    `;
-
-  }
-
-  if(mediaType === "audio"){
-
-    return `
-      <div class="revealed-question-media">
-        <audio
-          src="${esc(mediaUrl)}"
-          controls>
-        </audio>
-      </div>
-    `;
-
-  }
-
-  return "";
-
+  const parts=[];
+  const image=String(question?.image||((question?.mediaType==="image")?question?.mediaUrl:"")||"").trim();
+  const audio=String(question?.audio||question?.audioUrl||((question?.mediaType==="audio")?question?.mediaUrl:"")||"").trim();
+  const video=String(question?.video||((question?.mediaType==="video")?question?.mediaUrl:"")||"").trim();
+  if(image) parts.push(`<div class="revealed-question-media"><img src="${esc(image)}" alt="Question image" onerror="this.parentElement.style.display='none'"></div>`);
+  if(audio) parts.push(`<div class="revealed-question-media"><audio src="${esc(audio)}" controls playsinline></audio></div>`);
+  if(video){const yt=toYouTubeEmbedUrl(video);parts.push(yt?`<div class="revealed-question-media"><iframe src="${esc(yt)}" title="Question video" allowfullscreen></iframe></div>`:`<div class="revealed-question-media"><video src="${esc(video)}" controls playsinline></video></div>`);}
+  return parts.join("");
 }
 
 function getItemImage(item){
@@ -8727,6 +8640,18 @@ function renderStudentQuestion(){
       .replaceAll("-","")
       .replaceAll(" ","");
 
+  const normalizedTypeAliases = {
+    "listenandchoose":"listenchoose",
+    "listenrepeat":"listenrepeat",
+    "listenandrepeat":"listenrepeat",
+    "buildtheword":"buildword",
+    "buildthesentence":"buildsentence",
+    "catchthecorrectanswer":"catchanswer",
+    "moveandchoose":"movechoose",
+    "mysterybox":"mystery"
+  };
+  const playType = normalizedTypeAliases[type] || type;
+
   document
     .getElementById("questionNumber")
     .textContent =
@@ -8906,6 +8831,16 @@ function renderStudentQuestion(){
 
   }
 
+  /* Show every generated medium when AI created Image + Audio + Video. */
+  if(!revealMediaAfterSelection){
+    const extraImage=String(question.image || "").trim();
+    const extraAudio=String(question.audio || question.audioUrl || "").trim();
+    const extraVideo=String(question.video || "").trim();
+    if(extraImage && questionImage.classList.contains("hidden")){questionImage.src=extraImage;questionImage.classList.remove("hidden");}
+    if(extraAudio && questionAudio.classList.contains("hidden")){questionAudio.src=extraAudio;questionAudio.classList.remove("hidden");questionAudio.load();}
+    if(extraVideo && questionVideo.classList.contains("hidden") && questionYouTube.classList.contains("hidden")){const yt=toYouTubeEmbedUrl(extraVideo);if(yt){questionYouTube.src=yt;questionYouTube.classList.remove("hidden");}else{questionVideo.src=extraVideo;questionVideo.classList.remove("hidden");questionVideo.load();}}
+  }
+
   const feedback =
     document.getElementById("feedback");
 
@@ -8918,21 +8853,6 @@ function renderStudentQuestion(){
     );
 
   answersBox.innerHTML = "";
-
-  /* Normalize AI / legacy aliases to the same professional game engines. */
-  const normalizedTypeAliases = {
-    "listenandchoose":"listenchoose",
-    "listenrepeat":"listenrepeat",
-    "listenandrepeat":"listenrepeat",
-    "buildtheword":"buildword",
-    "buildthesentence":"buildsentence",
-    "catchthecorrectanswer":"catchanswer",
-    "moveandchoose":"movechoose",
-    "mysterybox":"mystery"
-  };
-
-  const playType =
-    normalizedTypeAliases[type] || type;
 
   /*
     Bomb Defuse must be rendered before the normal question types.
@@ -9167,22 +9087,43 @@ function getKidsCorrectText(question){
 function renderKidsBuildWord(question,answersBox){
   const target=getKidsCorrectText(question);
   const letters=(question.letters||target.split("")).filter(x=>String(x).trim());
-  answersBox.className="kids-player";
+  const image=String(question.image || (question.mediaType==="image"?question.mediaUrl:"") || "").trim();
+  answersBox.className="kids-player prudle-buildword-pro";
   answersBox.innerHTML=`
     <div class="kids-player-head">🔤 BUILD THE WORD</div>
-    <div class="kids-big-icon">🧠</div>
-    <div class="kids-instruction">${esc(question.text||"Tap the letters to build the word.")}</div>
-    <div id="kidsBuildWordZone" class="kids-build-zone"><span style="color:var(--muted);font-weight:800">Build your word here</span></div>
-    <div id="kidsLetterBank" class="kids-letter-bank"></div>
-    <button class="btn btn-light" type="button" onclick="kidsResetBuild('word')"><i class="fa-solid fa-rotate-left"></i> Reset</button>
-  `;
+    <div class="kids-instruction">${esc(question.text||"Arrange the letters to build the correct word.")}</div>
+    <div class="buildword-workspace">
+      <div class="buildword-picture">${image?`<img src="${esc(image)}" alt="Word clue">`:`<div class="buildword-picture-placeholder">🖼️<small>Picture clue</small></div>`}</div>
+      <div class="buildword-main">
+        <div id="kidsBuildWordZone" class="kids-build-zone pro-drop-zone" data-mode="word"><span>Drop or tap letters here</span></div>
+        <div id="kidsLetterBank" class="kids-letter-bank pro-letter-bank"></div>
+      </div>
+    </div>
+    <div class="type-result-actions">
+      <button class="btn btn-light" type="button" onclick="kidsResetBuild('word')"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+      <button class="btn btn-primary" type="button" onclick="checkKidsBuildWord()"><i class="fa-solid fa-check"></i> Check Word</button>
+    </div>`;
   const bank=document.getElementById("kidsLetterBank");
-  [...letters].sort(()=>Math.random()-.5).forEach(letter=>{
+  [...letters].sort(()=>Math.random()-.5).forEach((letter,index)=>{
     const b=document.createElement("button");
-    b.type="button"; b.className="kids-letter-btn"; b.textContent=letter;
+    b.type="button"; b.className="kids-letter-btn pro-draggable-letter"; b.textContent=letter;
+    b.draggable=true; b.dataset.sourceIndex=String(index);
     b.onclick=()=>kidsPickBuildItem(b,"word");
+    b.addEventListener("dragstart",e=>{ e.dataTransfer.setData("text/plain",b.dataset.sourceIndex); window.PRUDLE_DRAG_LETTER=b; });
     bank.appendChild(b);
   });
+  const zone=document.getElementById("kidsBuildWordZone");
+  zone.addEventListener("dragover",e=>e.preventDefault());
+  zone.addEventListener("drop",e=>{e.preventDefault(); if(window.PRUDLE_DRAG_LETTER) kidsPickBuildItem(window.PRUDLE_DRAG_LETTER,"word"); window.PRUDLE_DRAG_LETTER=null;});
+}
+
+function checkKidsBuildWord(){
+  if(ANSWER_LOCKED)return;
+  const question=CURRENT_ACTIVITY?.questions?.[CURRENT_QUESTION_INDEX]||{};
+  const target=String(getKidsCorrectText(question)||"").replace(/\s+/g,"").toLowerCase();
+  const built=[...document.querySelectorAll("#kidsBuildWordZone .kids-letter-btn")].map(x=>x.textContent).join("").replace(/\s+/g,"").toLowerCase();
+  if(!built){showToast("Build the word first.");return;}
+  gradeKidsTrainerActivity(Boolean(target && built===target));
 }
 
 function renderKidsBuildSentence(question,answersBox){
@@ -9244,21 +9185,58 @@ function renderKidsCatchAnswer(question,answersBox){
   });
 }
 
+let PRUDLE_MOVE_RACERS=[];
+let PRUDLE_MOVE_CURRENT=0;
+const PRUDLE_MOVE_FINISH=5;
+
 function renderKidsMoveChoose(question,answersBox){
-  answersBox.className="kids-player";
+  answersBox.className="kids-player prudle-move-race-player";
+  if(!PRUDLE_MOVE_RACERS.length){
+    answersBox.innerHTML=`
+      <div class="kids-player-head">🏃 MOVE &amp; CHOOSE — INDIVIDUAL RACE</div>
+      <div class="kids-instruction">Choose how many individual players will race. A correct answer moves the player one step toward the finish line.</div>
+      <div class="move-player-picker">
+        <label>Number of Players</label>
+        <select id="prudleMovePlayerCount" onchange="renderMovePlayerNameFields()">${[2,3,4,5,6,7,8].map(n=>`<option value="${n}">${n} Players</option>`).join("")}</select>
+        <div id="prudleMovePlayerNames" class="move-player-names"></div>
+        <button class="btn btn-primary" type="button" onclick="startPrudleMoveRace()"><i class="fa-solid fa-flag-checkered"></i> Start Race</button>
+      </div>`;
+    renderMovePlayerNameFields();
+    return;
+  }
+  renderPrudleMoveRaceQuestion(question,answersBox);
+}
+function renderMovePlayerNameFields(){
+  const count=Math.max(2,Math.min(8,Number(document.getElementById("prudleMovePlayerCount")?.value||2)));
+  const host=document.getElementById("prudleMovePlayerNames"); if(!host)return;
+  host.innerHTML=Array.from({length:count},(_,i)=>`<input id="prudleMoveName_${i}" value="Player ${i+1}" aria-label="Player ${i+1} name">`).join("");
+}
+function startPrudleMoveRace(){
+  const count=Math.max(2,Math.min(8,Number(document.getElementById("prudleMovePlayerCount")?.value||2)));
+  PRUDLE_MOVE_RACERS=Array.from({length:count},(_,i)=>({name:String(document.getElementById(`prudleMoveName_${i}`)?.value||`Player ${i+1}`).trim()||`Player ${i+1}`,step:0}));
+  PRUDLE_MOVE_CURRENT=0;
+  renderKidsMoveChoose(CURRENT_ACTIVITY.questions[CURRENT_QUESTION_INDEX],document.getElementById("studentAnswers"));
+}
+function renderPrudleMoveRaceQuestion(question,answersBox){
+  const current=PRUDLE_MOVE_RACERS[PRUDLE_MOVE_CURRENT];
   answersBox.innerHTML=`
-    <div class="kids-player-head">🏃 MOVE &amp; CHOOSE</div>
-    <div class="kids-move-stage">
-      <div class="kids-countdown"><span>3</span><span>2</span><span>1</span></div>
-      <div class="kids-go">GO! 🏃</div>
-      <div class="kids-instruction">${esc(question.text||"Touch something BLUE!")}</div>
-      <div style="color:var(--muted);font-weight:800">Move • Find • Touch • Point • Act</div>
-      <div class="kids-trainer-grade">
-        <button class="btn kids-correct" type="button" onclick="gradeKidsTrainerActivity(true)"><i class="fa-solid fa-check"></i> Done / Correct</button>
-        <button class="btn kids-wrong" type="button" onclick="gradeKidsTrainerActivity(false)"><i class="fa-solid fa-rotate-right"></i> Try Again</button>
-      </div>
-    </div>
-  `;
+    <div class="kids-player-head">🏃 MOVE &amp; CHOOSE — INDIVIDUAL</div>
+    <div class="move-current-player">🎯 ${esc(current?.name||"Player")}'s Turn</div>
+    <div class="prudle-race-track">${PRUDLE_MOVE_RACERS.map((p,i)=>`<div class="race-lane ${i===PRUDLE_MOVE_CURRENT?'active':''}"><b>${esc(p.name)}</b><div class="race-road">${Array.from({length:PRUDLE_MOVE_FINISH+1},(_,s)=>`<span class="race-step ${s<=p.step?'passed':''}">${s===PRUDLE_MOVE_FINISH?'🏁':(s===p.step?'🏃':'•')}</span>`).join('')}</div></div>`).join('')}</div>
+    <div class="kids-move-stage"><div class="kids-go">GO! 🏃</div><div class="kids-instruction">${esc(question.text||"Move, choose, point, touch or act!")}</div></div>
+    <div class="kids-trainer-grade"><button class="btn kids-correct" type="button" onclick="gradePrudleMoveRace(true)"><i class="fa-solid fa-check"></i> Correct — Move 1 Step</button><button class="btn kids-wrong" type="button" onclick="gradePrudleMoveRace(false)"><i class="fa-solid fa-xmark"></i> Wrong — Next Player</button></div>`;
+}
+function gradePrudleMoveRace(correct){
+  if(!PRUDLE_MOVE_RACERS.length)return;
+  const racer=PRUDLE_MOVE_RACERS[PRUDLE_MOVE_CURRENT];
+  if(correct){racer.step=Math.min(PRUDLE_MOVE_FINISH,racer.step+1); if(typeof playCorrectSound==='function')playCorrectSound();}
+  else if(typeof playWrongSound==='function')playWrongSound();
+  if(racer.step>=PRUDLE_MOVE_FINISH){
+    document.getElementById('studentAnswers').innerHTML=`<div class="move-winner"><div>🏆</div><h2>${esc(racer.name)} Wins!</h2><p>Reached the finish line 🏁</p><button class="btn btn-gold" onclick="PRUDLE_MOVE_RACERS=[];renderKidsMoveChoose(CURRENT_ACTIVITY.questions[CURRENT_QUESTION_INDEX],document.getElementById('studentAnswers'))">New Race</button></div>`;
+    return;
+  }
+  PRUDLE_MOVE_CURRENT=(PRUDLE_MOVE_CURRENT+1)%PRUDLE_MOVE_RACERS.length;
+  renderPrudleMoveRaceQuestion(CURRENT_ACTIVITY.questions[CURRENT_QUESTION_INDEX],document.getElementById('studentAnswers'));
 }
 
 function gradeKidsTrainerActivity(correct){
@@ -16072,6 +16050,10 @@ window.addEventListener(
     .prudle-individual-new-toast{right:78px;top:auto;bottom:24px}
     .prudle-individual-sidebar{width:100%;padding:12px}
   }
+
+/* PRUDLE 2026 — mobile professional interactive games */
+.buildword-workspace{display:grid;grid-template-columns:minmax(150px,34%) 1fr;gap:18px;align-items:center;margin:18px 0}.buildword-picture{min-height:180px;border:2px dashed #8ed9c0;border-radius:22px;background:#f0fbf7;display:grid;place-items:center;padding:12px}.buildword-picture img{width:100%;max-height:220px;object-fit:contain;border-radius:16px}.buildword-picture-placeholder{display:grid;gap:8px;text-align:center;font-size:54px;color:#17a673}.buildword-picture-placeholder small{font-size:12px}.pro-drop-zone{min-height:82px;border:2px dashed #17a673!important;background:#f8fffc!important;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}.pro-letter-bank{min-height:70px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:16px 0}.pro-draggable-letter{touch-action:manipulation;min-width:52px;min-height:56px;font-size:22px!important}.mystery-choice{background:linear-gradient(145deg,#242038,#0d1020)!important;border:2px solid #8c78ff!important;box-shadow:0 10px 24px rgba(10,10,30,.3)!important}.mystery-choice-number{background:#fff!important;color:#35245e!important}.mystery-stage{background:linear-gradient(145deg,#171426,#28213f)!important;color:#fff!important;border-radius:24px;padding:20px}.mystery-instruction{color:#fff!important}.move-player-picker{max-width:680px;margin:18px auto;display:grid;gap:12px}.move-player-picker select,.move-player-names input{width:100%;padding:12px;border:1px solid var(--border);border-radius:13px;font:inherit}.move-player-names{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.move-current-player{text-align:center;font-size:22px;font-weight:900;color:var(--blue);margin:12px}.prudle-race-track{display:grid;gap:10px;margin:16px 0}.race-lane{padding:11px;border:1px solid var(--border);border-radius:15px;background:#fff}.race-lane.active{border:2px solid var(--gold);background:#fff9e8}.race-road{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:8px}.race-step{min-height:38px;border-radius:10px;background:#edf4fa;display:grid;place-items:center}.race-step.passed{background:#e5f8f0}.move-winner{text-align:center;padding:35px;font-size:20px}.move-winner>div{font-size:70px}.match-image-option{touch-action:manipulation;min-height:64px}.match-image-option img{pointer-events:none}
+@media(max-width:700px){.game-area,.panel{padding:12px!important}.buildword-workspace{grid-template-columns:1fr}.buildword-picture{min-height:130px}.buildword-picture img{max-height:170px}.move-player-names{grid-template-columns:1fr}.race-road{gap:3px}.race-step{min-height:32px;font-size:13px}.mystery-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.match-row{padding:10px!important}.match-image-options{grid-template-columns:repeat(2,minmax(0,1fr))!important}.student-answer,.btn{min-height:44px}.wheel-game{max-width:100%;overflow:hidden}}
 </style>
 
 <button
