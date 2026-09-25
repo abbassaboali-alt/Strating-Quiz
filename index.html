@@ -6943,6 +6943,20 @@ function cloneActivityForPlay(activity){
 
 function startActivity(activityId,courseId){
   /*
+    IMPORTANT:
+    Activities can be opened from the Activity Groups popup.
+    That popup locks document.body scrolling. Release it before entering
+    Practice Mode so the wheel and its controls remain reachable.
+  */
+  const groupsModal = document.getElementById("questionGroupsModal");
+  if(groupsModal){
+    groupsModal.classList.remove("show");
+  }
+  document.body.style.overflow = "";
+  document.documentElement.style.overflow = "";
+  document.body.style.touchAction = "auto";
+
+  /*
     حماية إضافية:
     حتى لو تم استدعاء الدالة يدوياً، لا يبدأ النشاط
     للمدرب أو الإدمن بدون اختيار دورة.
@@ -9966,18 +9980,18 @@ function renderWheelMcqQuestion(question,answersBox){
     </div>
 
     <div id="wheelMcqWheelStage" class="wheel-mcq-wheel-stage">
+      <div class="wheel-controls wheel-mcq-primary-controls">
+        <button id="wheelMcqSpinBtn" class="btn btn-gold wheel-mcq-spin-button" type="button" onclick="spinWheelMcq()">
+          <i class="fa-solid fa-rotate"></i> Spin Wheel
+        </button>
+      </div>
+
       <div class="wheel-wrap">
         <div class="wheel-pointer">▼</div>
         <div id="wheelMcqDisc" class="wheel-disc wheel-mcq-disc" style="background:conic-gradient(${gradient})">
           ${labels}
           <div class="wheel-center">🎡</div>
         </div>
-      </div>
-
-      <div class="wheel-controls">
-        <button id="wheelMcqSpinBtn" class="btn btn-gold" type="button" onclick="spinWheelMcq()">
-          <i class="fa-solid fa-rotate"></i> Spin Wheel
-        </button>
       </div>
     </div>
 
@@ -16054,6 +16068,81 @@ window.addEventListener(
 /* PRUDLE 2026 — mobile professional interactive games */
 .buildword-workspace{display:grid;grid-template-columns:minmax(150px,34%) 1fr;gap:18px;align-items:center;margin:18px 0}.buildword-picture{min-height:180px;border:2px dashed #8ed9c0;border-radius:22px;background:#f0fbf7;display:grid;place-items:center;padding:12px}.buildword-picture img{width:100%;max-height:220px;object-fit:contain;border-radius:16px}.buildword-picture-placeholder{display:grid;gap:8px;text-align:center;font-size:54px;color:#17a673}.buildword-picture-placeholder small{font-size:12px}.pro-drop-zone{min-height:82px;border:2px dashed #17a673!important;background:#f8fffc!important;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}.pro-letter-bank{min-height:70px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:16px 0}.pro-draggable-letter{touch-action:manipulation;min-width:52px;min-height:56px;font-size:22px!important}.mystery-choice{background:linear-gradient(145deg,#242038,#0d1020)!important;border:2px solid #8c78ff!important;box-shadow:0 10px 24px rgba(10,10,30,.3)!important}.mystery-choice-number{background:#fff!important;color:#35245e!important}.mystery-stage{background:linear-gradient(145deg,#171426,#28213f)!important;color:#fff!important;border-radius:24px;padding:20px}.mystery-instruction{color:#fff!important}.move-player-picker{max-width:680px;margin:18px auto;display:grid;gap:12px}.move-player-picker select,.move-player-names input{width:100%;padding:12px;border:1px solid var(--border);border-radius:13px;font:inherit}.move-player-names{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.move-current-player{text-align:center;font-size:22px;font-weight:900;color:var(--blue);margin:12px}.prudle-race-track{display:grid;gap:10px;margin:16px 0}.race-lane{padding:11px;border:1px solid var(--border);border-radius:15px;background:#fff}.race-lane.active{border:2px solid var(--gold);background:#fff9e8}.race-road{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:8px}.race-step{min-height:38px;border-radius:10px;background:#edf4fa;display:grid;place-items:center}.race-step.passed{background:#e5f8f0}.move-winner{text-align:center;padding:35px;font-size:20px}.move-winner>div{font-size:70px}.match-image-option{touch-action:manipulation;min-height:64px}.match-image-option img{pointer-events:none}
 @media(max-width:700px){.game-area,.panel{padding:12px!important}.buildword-workspace{grid-template-columns:1fr}.buildword-picture{min-height:130px}.buildword-picture img{max-height:170px}.move-player-names{grid-template-columns:1fr}.race-road{gap:3px}.race-step{min-height:32px;font-size:13px}.mystery-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.match-row{padding:10px!important}.match-image-options{grid-template-columns:repeat(2,minmax(0,1fr))!important}.student-answer,.btn{min-height:44px}.wheel-game{max-width:100%;overflow:hidden}}
+
+/* =====================================
+   WHEEL + MCQ — SCROLL / MOBILE FIX
+===================================== */
+html,body{
+  overflow-x:hidden;
+}
+#wheelMcqWheelStage{
+  width:100%;
+  min-width:0;
+}
+.wheel-mcq-primary-controls{
+  position:relative;
+  z-index:30;
+  margin:8px auto 16px;
+}
+.wheel-mcq-spin-button{
+  min-width:190px;
+  min-height:52px;
+  padding:13px 22px;
+  font-size:16px;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.wheel-mcq-game .wheel-wrap{
+  width:min(460px,82vw);
+  max-width:100%;
+}
+@media(max-height:800px) and (min-width:651px){
+  .wheel-mcq-game .wheel-wrap{
+    width:min(390px,70vh);
+  }
+}
+@media(max-width:650px){
+  body{
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-y;
+  }
+  .play-shell,
+  .game-card,
+  .wheel-mcq-game{
+    width:100%;
+    min-width:0;
+    overflow:visible;
+  }
+  .wheel-mcq-game .wheel-wrap{
+    width:min(350px,88vw);
+    margin-bottom:12px;
+  }
+  .wheel-mcq-primary-controls{
+    position:sticky;
+    top:8px;
+    z-index:35;
+    padding:6px;
+    border-radius:16px;
+    background:rgba(255,255,255,.94);
+    backdrop-filter:blur(6px);
+  }
+  .wheel-mcq-spin-button{
+    width:min(100%,320px);
+    min-height:54px;
+    font-size:16px;
+  }
+  .wheel-mcq-instruction{
+    font-size:14px;
+    line-height:1.55;
+  }
+  .wheel-mcq-remaining{
+    max-height:88px;
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+}
+
 </style>
 
 <button
