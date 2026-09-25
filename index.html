@@ -3508,6 +3508,16 @@ button{font-family:inherit;cursor:pointer}
         style="width:100%;margin:0 auto 20px">
       </audio>
 
+      <div id="learnPracticeReviewArea" class="learn-practice-review-area hidden">
+        <button
+          class="btn learn-practice-review-btn"
+          type="button"
+          onclick="reviewLatestLearnPracticeVideo()">
+          <i class="fa-solid fa-circle-play"></i>
+          Review Educational Video
+        </button>
+      </div>
+
       <div id="studentAnswers" class="student-answers"></div>
       <div id="feedback" class="feedback"></div>
 
@@ -8687,6 +8697,8 @@ function renderStudentQuestion(){
   };
   const playType = normalizedTypeAliases[type] || type;
 
+  updateLearnPracticeReviewArea(playType);
+
   document
     .getElementById("questionNumber")
     .textContent =
@@ -9058,6 +9070,121 @@ function renderStudentQuestion(){
 
 
 /* =====================================
+   LEARN & PRACTICE — RETURN TO VIDEO
+===================================== */
+let LEARN_PRACTICE_REVIEW_RETURN_INDEX=null;
+
+function normalizeStudentQuestionType(value){
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("_","")
+    .replaceAll("-","")
+    .replaceAll(" ","");
+}
+
+function getLatestLearnPracticeIndexBeforeCurrent(){
+  if(
+    !CURRENT_ACTIVITY ||
+    !Array.isArray(CURRENT_ACTIVITY.questions) ||
+    CURRENT_QUESTION_INDEX <= 0
+  ){
+    return -1;
+  }
+
+  for(let index=CURRENT_QUESTION_INDEX-1;index>=0;index--){
+    if(
+      normalizeStudentQuestionType(
+        CURRENT_ACTIVITY.questions[index]?.type
+      ) === "learnpractice"
+    ){
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function updateLearnPracticeReviewArea(currentPlayType){
+  const area=document.getElementById("learnPracticeReviewArea");
+  if(!area)return;
+
+  const isLearnPractice=
+    normalizeStudentQuestionType(currentPlayType) === "learnpractice";
+
+  const hasPreviousVideo=
+    getLatestLearnPracticeIndexBeforeCurrent() >= 0;
+
+  area.classList.toggle(
+    "hidden",
+    isLearnPractice || !hasPreviousVideo
+  );
+}
+
+function reviewLatestLearnPracticeVideo(){
+  if(
+    ACTIVITY_FINISHED ||
+    !CURRENT_ACTIVITY ||
+    !Array.isArray(CURRENT_ACTIVITY.questions)
+  ){
+    return;
+  }
+
+  const videoIndex=getLatestLearnPracticeIndexBeforeCurrent();
+  if(videoIndex < 0)return;
+
+  LEARN_PRACTICE_REVIEW_RETURN_INDEX=CURRENT_QUESTION_INDEX;
+
+  stopBombTimer();
+  stopActivityTimer();
+  clearRandomQuestionTimers();
+  clearWheelState();
+
+  CURRENT_QUESTION_INDEX=videoIndex;
+  ANSWER_LOCKED=false;
+
+  renderStudentQuestion();
+  prepareTimerForCurrentQuestion();
+
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function returnToQuestionAfterVideoReview(){
+  if(
+    LEARN_PRACTICE_REVIEW_RETURN_INDEX === null ||
+    !CURRENT_ACTIVITY ||
+    !Array.isArray(CURRENT_ACTIVITY.questions)
+  ){
+    return;
+  }
+
+  const returnIndex=Number(LEARN_PRACTICE_REVIEW_RETURN_INDEX);
+  LEARN_PRACTICE_REVIEW_RETURN_INDEX=null;
+
+  if(
+    !Number.isInteger(returnIndex) ||
+    returnIndex < 0 ||
+    returnIndex >= CURRENT_ACTIVITY.questions.length
+  ){
+    return;
+  }
+
+  stopBombTimer();
+  stopActivityTimer();
+  clearRandomQuestionTimers();
+  clearWheelState();
+
+  CURRENT_QUESTION_INDEX=returnIndex;
+  ANSWER_LOCKED=false;
+
+  renderStudentQuestion();
+  prepareTimerForCurrentQuestion();
+
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+
+/* =====================================
    LEARN & PRACTICE — VIDEO LESSON
 ===================================== */
 function renderLearnPracticeQuestion(question,answersBox){
@@ -9131,9 +9258,15 @@ function renderLearnPracticeQuestion(question,answersBox){
              </button>`
           : ""
       }
-      <button class="btn btn-primary" type="button" onclick="nextLearnPracticeQuestion()">
-        Next Question <i class="fa-solid fa-arrow-right"></i>
-      </button>
+      ${
+        LEARN_PRACTICE_REVIEW_RETURN_INDEX !== null
+          ? `<button class="btn btn-primary" type="button" onclick="returnToQuestionAfterVideoReview()">
+               <i class="fa-solid fa-arrow-left"></i> Return to Question
+             </button>`
+          : `<button class="btn btn-primary" type="button" onclick="nextLearnPracticeQuestion()">
+               Next Question <i class="fa-solid fa-arrow-right"></i>
+             </button>`
+      }
     </div>`;
 
   /*
@@ -9203,6 +9336,8 @@ function previousLearnPracticeVideo(){
 }
 
 function nextLearnPracticeQuestion(){
+  LEARN_PRACTICE_REVIEW_RETURN_INDEX=null;
+
   if(
     ACTIVITY_FINISHED ||
     !CURRENT_ACTIVITY ||
@@ -16442,6 +16577,32 @@ html,body{
   .learn-practice-actions .btn{
     width:100%;
     min-height:52px;
+  }
+}
+
+
+/* Learn & Practice — review educational video after moving forward */
+.learn-practice-review-area{
+  display:flex;
+  justify-content:center;
+  margin:0 auto 16px;
+}
+.learn-practice-review-btn{
+  background:#eef6fd;
+  color:#164478;
+  border:1px solid #bfd5e8;
+  box-shadow:0 7px 16px rgba(22,68,120,.08);
+}
+.learn-practice-review-btn:hover{
+  background:#e2f0fb;
+}
+@media(max-width:650px){
+  .learn-practice-review-area,
+  .learn-practice-review-btn{
+    width:100%;
+  }
+  .learn-practice-review-btn{
+    min-height:50px;
   }
 }
 
